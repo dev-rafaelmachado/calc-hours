@@ -7,8 +7,19 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-from hours_app.constants import DAY_LABELS, WEEK_TARGET_MINUTES, week_end_for, week_start_for
-from hours_app.db import delete_entry, fetch_entries, init_db, insert_entry, insert_many, update_entry
+from hours_app.constants import (
+    DAY_LABELS,
+    WEEK_TARGET_MINUTES,
+    week_start_for,
+)
+from hours_app.db import (
+    delete_entry,
+    fetch_entries,
+    init_db,
+    insert_entry,
+    insert_many,
+    update_entry,
+)
 from hours_app.services import (
     add_week_fields,
     build_live_today_projection,
@@ -17,7 +28,12 @@ from hours_app.services import (
     month_metrics,
     weekly_summary,
 )
-from hours_app.time_utils import compute_total_minutes, minutes_to_duration_hhmm, minutes_to_human, parse_hhmm
+from hours_app.time_utils import (
+    compute_total_minutes,
+    minutes_to_duration_hhmm,
+    minutes_to_human,
+    parse_hhmm,
+)
 
 DB_PATH = Path("data/hours.db")
 
@@ -31,7 +47,9 @@ def render_db_controls() -> None:
     st.subheader("🗄️ Banco")
     st.caption("Use para resetar o banco SQLite quando quiser começar do zero.")
 
-    confirm_reset = st.checkbox("Confirmar reset total (apaga todos os registros)", value=False)
+    confirm_reset = st.checkbox(
+        "Confirmar reset total (apaga todos os registros)", value=False
+    )
     if st.button("Resetar banco", type="primary"):
         if not confirm_reset:
             st.warning("Marque a confirmação antes de resetar.")
@@ -92,7 +110,15 @@ def parse_csv_to_records(uploaded_file, reference_monday: date) -> list[dict]:
             day_name = str(row.get("day", "")).strip().lower()
             if day_name not in DAY_LABELS:
                 continue
-            offset = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"].index(day_name)
+            offset = [
+                "monday",
+                "tuesday",
+                "wednesday",
+                "thursday",
+                "friday",
+                "saturday",
+                "sunday",
+            ].index(day_name)
             work_date = reference_monday + pd.Timedelta(days=offset)
             work_date = pd.to_datetime(work_date).date()
 
@@ -116,12 +142,20 @@ def render_manual_entry() -> None:
     with st.form("manual_entry", clear_on_submit=True):
         col1, col2 = st.columns(2)
         work_date = col1.date_input("Data", value=date.today())
-        start_time = col2.time_input("Entrada", value=datetime.strptime("09:00", "%H:%M").time())
+        start_time = col2.time_input(
+            "Entrada", value=datetime.strptime("09:00", "%H:%M").time()
+        )
 
         col3, col4, col5 = st.columns(3)
-        lunch_start = col3.time_input("Saída almoço", value=datetime.strptime("12:00", "%H:%M").time())
-        lunch_end = col4.time_input("Volta almoço", value=datetime.strptime("13:00", "%H:%M").time())
-        end_time = col5.time_input("Saída", value=datetime.strptime("18:00", "%H:%M").time())
+        lunch_start = col3.time_input(
+            "Saída almoço", value=datetime.strptime("12:00", "%H:%M").time()
+        )
+        lunch_end = col4.time_input(
+            "Volta almoço", value=datetime.strptime("13:00", "%H:%M").time()
+        )
+        end_time = col5.time_input(
+            "Saída", value=datetime.strptime("18:00", "%H:%M").time()
+        )
 
         save = st.form_submit_button("Salvar no banco")
 
@@ -153,7 +187,11 @@ def render_edit_past_entries(entries: pd.DataFrame) -> None:
         return
 
     today = date.today()
-    past_entries = entries[entries["work_date"] < today].copy().sort_values("work_date", ascending=False)
+    past_entries = (
+        entries[entries["work_date"] < today]
+        .copy()
+        .sort_values("work_date", ascending=False)
+    )
 
     if past_entries.empty:
         st.info("Ainda não há registros anteriores a hoje.")
@@ -161,7 +199,9 @@ def render_edit_past_entries(entries: pd.DataFrame) -> None:
 
     options = past_entries["id"].tolist()
     labels = {
-        int(row["id"]): f"#{int(row['id'])} • {row['work_date']} • {row['start_time']} - {row['end_time']}"
+        int(
+            row["id"]
+        ): f"#{int(row['id'])} • {row['work_date']} • {row['start_time']} - {row['end_time']}"
         for _, row in past_entries.iterrows()
     }
     selected_id = st.selectbox(
@@ -174,7 +214,9 @@ def render_edit_past_entries(entries: pd.DataFrame) -> None:
 
     with st.form(f"edit_entry_{selected_id}"):
         col1, col2 = st.columns(2)
-        work_date = col1.date_input("Data", value=row["work_date"], key=f"edit_date_{selected_id}")
+        work_date = col1.date_input(
+            "Data", value=row["work_date"], key=f"edit_date_{selected_id}"
+        )
         start_time = col2.time_input(
             "Entrada",
             value=datetime.strptime(str(row["start_time"]), "%H:%M").time(),
@@ -198,7 +240,11 @@ def render_edit_past_entries(entries: pd.DataFrame) -> None:
             key=f"edit_end_{selected_id}",
         )
 
-        confirm_delete = st.checkbox("Confirmar exclusão deste registro", value=False, key=f"delete_{selected_id}")
+        confirm_delete = st.checkbox(
+            "Confirmar exclusão deste registro",
+            value=False,
+            key=f"delete_{selected_id}",
+        )
 
         b1, b2 = st.columns(2)
         save_clicked = b1.form_submit_button("Salvar alterações", type="primary")
@@ -244,11 +290,19 @@ def render_live_today_session(entries: pd.DataFrame, enriched: pd.DataFrame) -> 
     )
 
     today = date.today()
-    today_saved = entries[entries["work_date"] == today].copy() if not entries.empty else pd.DataFrame()
+    today_saved = (
+        entries[entries["work_date"] == today].copy()
+        if not entries.empty
+        else pd.DataFrame()
+    )
 
     start_value = st.text_input("Entrada (HH:MM)", value="", key="live_today_start")
-    lunch_start_value = st.text_input("Saída almoço (HH:MM)", value="", key="live_today_lunch_start")
-    lunch_end_value = st.text_input("Volta almoço (HH:MM)", value="", key="live_today_lunch_end")
+    lunch_start_value = st.text_input(
+        "Saída almoço (HH:MM)", value="", key="live_today_lunch_start"
+    )
+    lunch_end_value = st.text_input(
+        "Volta almoço (HH:MM)", value="", key="live_today_lunch_end"
+    )
     end_value = st.text_input("Saída (HH:MM)", value="", key="live_today_end")
 
     invalid_fields = []
@@ -276,12 +330,19 @@ def render_live_today_session(entries: pd.DataFrame, enriched: pd.DataFrame) -> 
         today=today,
     )
 
-    worked_dynamic_minutes = int(projection["details"]["worked_current_week"]) + int(projection["today_minutes"])
-    missing_dynamic_minutes = max(int(projection["details"]["target_to_plan"]) - int(projection["today_minutes"]), 0)
+    worked_dynamic_minutes = int(projection["details"]["worked_current_week"]) + int(
+        projection["today_minutes"]
+    )
+    missing_dynamic_minutes = max(
+        int(projection["details"]["target_to_plan"]) - int(projection["today_minutes"]),
+        0,
+    )
 
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Carga prevista para hoje", projection["today_minutes_human"])
-    c2.metric("Projeção total da semana", projection["details"]["projected_week_total_human"])
+    c2.metric(
+        "Projeção total da semana", projection["details"]["projected_week_total_human"]
+    )
     c3.metric("Trabalhado", minutes_to_human(worked_dynamic_minutes))
     c4.metric("Falta p/ 40h", minutes_to_human(missing_dynamic_minutes))
 
@@ -304,11 +365,15 @@ def render_live_today_session(entries: pd.DataFrame, enriched: pd.DataFrame) -> 
 
     actual_by_date: dict[str, int] = {}
     if not enriched.empty:
-        in_week = (enriched["work_date"].dt.date >= week_start) & (enriched["work_date"].dt.date <= week_start + pd.Timedelta(days=4))
+        in_week = (enriched["work_date"].dt.date >= week_start) & (
+            enriched["work_date"].dt.date <= week_start + pd.Timedelta(days=4)
+        )
         week_rows = enriched.loc[in_week].copy()
         if not week_rows.empty:
             week_rows["work_day"] = week_rows["work_date"].dt.date
-            grouped_actual = week_rows.groupby("work_day", as_index=False)["total_minutes"].sum()
+            grouped_actual = week_rows.groupby("work_day", as_index=False)[
+                "total_minutes"
+            ].sum()
             actual_by_date = {
                 row["work_day"].isoformat(): int(row["total_minutes"])
                 for _, row in grouped_actual.iterrows()
@@ -354,7 +419,12 @@ def render_live_today_session(entries: pd.DataFrame, enriched: pd.DataFrame) -> 
             st.error("Corrija os horários com formato inválido antes de salvar.")
             return
 
-        filled = [start_value.strip(), lunch_start_value.strip(), lunch_end_value.strip(), end_value.strip()]
+        filled = [
+            start_value.strip(),
+            lunch_start_value.strip(),
+            lunch_end_value.strip(),
+            end_value.strip(),
+        ]
         if not all(filled):
             st.error("Para salvar, preencha os 4 horários.")
             return
@@ -392,10 +462,14 @@ def render_live_today_session(entries: pd.DataFrame, enriched: pd.DataFrame) -> 
 
 def render_csv_import() -> None:
     st.subheader("📥 Importar CSV")
-    st.caption("Se o CSV não tiver coluna date, ele usa o dia da semana + segunda de referência.")
+    st.caption(
+        "Se o CSV não tiver coluna date, ele usa o dia da semana + segunda de referência."
+    )
 
     default_monday = week_start_for(date.today())
-    reference_monday = st.date_input("Segunda da semana de referência", value=default_monday)
+    reference_monday = st.date_input(
+        "Segunda da semana de referência", value=default_monday
+    )
     files = st.file_uploader("CSV(s)", type=["csv"], accept_multiple_files=True)
 
     import_clicked = st.button("Importar", width="stretch")
@@ -432,8 +506,12 @@ def render_simulacao_livre(df: pd.DataFrame) -> None:
 
     week_entries = pd.DataFrame()
     if not df.empty:
-        in_week = (df["work_date"].dt.date >= week_start) & (df["work_date"].dt.date <= week_start + pd.Timedelta(days=4))
-        week_entries = df.loc[in_week].copy().sort_values(["work_date", "created_at"])  # mantém o último do dia
+        in_week = (df["work_date"].dt.date >= week_start) & (
+            df["work_date"].dt.date <= week_start + pd.Timedelta(days=4)
+        )
+        week_entries = (
+            df.loc[in_week].copy().sort_values(["work_date", "created_at"])
+        )  # mantém o último do dia
 
     existing_by_day: dict[str, dict] = {}
     if not week_entries.empty:
@@ -507,13 +585,17 @@ def render_simulacao_livre(df: pd.DataFrame) -> None:
             worked_until_today_minutes += row_minutes
 
     if invalid_rows:
-        st.warning(f"Linhas inválidas na simulação: {invalid_rows}. Use data válida e horários HH:MM.")
+        st.warning(
+            f"Linhas inválidas na simulação: {invalid_rows}. Use data válida e horários HH:MM."
+        )
 
     previous_weeks_debt = int(details.get("previous_weeks_debt", 0))
     missing_40h = max(WEEK_TARGET_MINUTES - week_total_minutes, 0)
     overtime_vs_40h = max(week_total_minutes - WEEK_TARGET_MINUTES, 0)
     compensation_remaining = max(previous_weeks_debt - overtime_vs_40h, 0)
-    plus_hours = max(week_total_minutes - (WEEK_TARGET_MINUTES + previous_weeks_debt), 0)
+    plus_hours = max(
+        week_total_minutes - (WEEK_TARGET_MINUTES + previous_weeks_debt), 0
+    )
 
     st.markdown("**Resultados da simulação**")
     c1, c2, c3, c4, c5 = st.columns(5)
@@ -533,7 +615,10 @@ def render_current_week(df: pd.DataFrame) -> None:
     m2.metric("Trabalhado", summary["worked_human"])
     m3.metric("Falta p/ 40h", summary["remaining_human"])
 
-    st.progress(summary["progress"], text=f"Progresso da semana: {summary['progress'] * 100:.1f}%")
+    st.progress(
+        summary["progress"],
+        text=f"Progresso da semana: {summary['progress'] * 100:.1f}%",
+    )
 
     start = summary["week_start"]
     end = summary["week_end"]
@@ -544,11 +629,29 @@ def render_current_week(df: pd.DataFrame) -> None:
         st.info("Ainda não há registros nesta semana.")
     else:
         view = current_week_rows[
-            ["work_date", "day_label", "start_time", "lunch_start_time", "lunch_end_time", "end_time", "total_minutes", "source"]
+            [
+                "work_date",
+                "day_label",
+                "start_time",
+                "lunch_start_time",
+                "lunch_end_time",
+                "end_time",
+                "total_minutes",
+                "source",
+            ]
         ].copy()
         view["hours_hhmm"] = view["total_minutes"].apply(minutes_to_duration_hhmm)
         view = view.drop(columns=["total_minutes"])
-        view.columns = ["Data", "Dia", "Entrada", "Saída almoço", "Volta almoço", "Saída", "Origem", "Horas (HH:MM)"]
+        view.columns = [
+            "Data",
+            "Dia",
+            "Entrada",
+            "Saída almoço",
+            "Volta almoço",
+            "Saída",
+            "Origem",
+            "Horas (HH:MM)",
+        ]
         st.dataframe(view, width="stretch", hide_index=True)
 
     forecast, details = forecast_for_current_week(df)
@@ -558,14 +661,24 @@ def render_current_week(df: pd.DataFrame) -> None:
 
     st.markdown("**Previsão consolidada da semana**")
     c1, c2, c3 = st.columns(3)
-    c1.metric("Déficit desta semana", minutes_to_duration_hhmm(details["missing_current_week"]))
-    c2.metric("Compensação semanas anteriores", minutes_to_duration_hhmm(details["previous_weeks_debt"]))
+    c1.metric(
+        "Déficit desta semana",
+        minutes_to_duration_hhmm(details["missing_current_week"]),
+    )
+    c2.metric(
+        "Compensação semanas anteriores",
+        minutes_to_duration_hhmm(details["previous_weeks_debt"]),
+    )
     c3.metric("Projeção total da semana", details["projected_week_total_human"])
 
 
 def render_monthly_metrics(df: pd.DataFrame) -> None:
     st.subheader("📊 Métricas do mês")
-    selected_month = st.date_input("Mês para métricas", value=date.today().replace(day=1), key="month_metrics_picker")
+    selected_month = st.date_input(
+        "Mês para métricas",
+        value=date.today().replace(day=1),
+        key="month_metrics_picker",
+    )
     selected_month = selected_month.replace(day=1)
 
     metrics, week_details = month_metrics(df, selected_month)
@@ -599,7 +712,9 @@ def render_calendar(df: pd.DataFrame) -> None:
     try:
         from streamlit_calendar import calendar as st_calendar
     except Exception:
-        st.error("Calendário visual não disponível. Instale dependências com: pip install -r requirements.txt")
+        st.error(
+            "Calendário visual não disponível. Instale dependências com: pip install -r requirements.txt"
+        )
         return
 
     today = date.today()
@@ -610,7 +725,9 @@ def render_calendar(df: pd.DataFrame) -> None:
     else:
         work = df.copy()
         work["work_day"] = work["work_date"].dt.date
-        grouped = work.groupby("work_day", as_index=False).agg(total_minutes=("total_minutes", "sum"))
+        grouped = work.groupby("work_day", as_index=False).agg(
+            total_minutes=("total_minutes", "sum")
+        )
         events = [
             {
                 "title": f"{minutes_to_human(int(row['total_minutes']))}",
@@ -643,7 +760,11 @@ def render_calendar(df: pd.DataFrame) -> None:
         "eventDisplay": "block",
     }
 
-    st_calendar(events=events, options=options, key=f"hours_calendar_{selected_month.isoformat()}")
+    st_calendar(
+        events=events,
+        options=options,
+        key=f"hours_calendar_{selected_month.isoformat()}",
+    )
 
 
 def main() -> None:
@@ -651,7 +772,9 @@ def main() -> None:
     bootstrap_db()
 
     st.title("⏱️ Hours Commander")
-    st.caption("Projeto organizado com SQLite, controle da semana atual, resumo semanal e calendário.")
+    st.caption(
+        "Projeto organizado com SQLite, controle da semana atual, resumo semanal e calendário."
+    )
 
     render_csv_import()
     render_manual_entry()
@@ -669,7 +792,9 @@ def main() -> None:
     render_simulacao_livre(enriched)
 
     if entries.empty:
-        st.info("Sem registros no banco ainda. Importe CSV ou insira horários manualmente.")
+        st.info(
+            "Sem registros no banco ainda. Importe CSV ou insira horários manualmente."
+        )
         st.stop()
 
     st.divider()
@@ -683,7 +808,7 @@ def main() -> None:
 
     st.divider()
     render_calendar(enriched)
-    
+
     st.divider()
     render_db_controls()
 
