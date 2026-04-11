@@ -12,6 +12,7 @@ from hours_app.constants import (
     week_start_for,
 )
 from hours_app.db import (
+    authenticate_user,
     delete_entry,
     fetch_entries,
     init_db,
@@ -36,10 +37,48 @@ from hours_app.time_utils import (
 )
 
 DB_PATH = None
+AUTHENTICATED_KEY = "authenticated"
+AUTH_USER_KEY = "auth_user"
 
 
 def bootstrap_db() -> None:
     init_db(DB_PATH)
+
+
+def _ensure_auth_state() -> None:
+    if AUTHENTICATED_KEY not in st.session_state:
+        st.session_state[AUTHENTICATED_KEY] = False
+    if AUTH_USER_KEY not in st.session_state:
+        st.session_state[AUTH_USER_KEY] = ""
+
+
+def render_auth_gate() -> None:
+    _ensure_auth_state()
+
+    if st.session_state[AUTHENTICATED_KEY]:
+        c1, c2 = st.columns([0.8, 0.2])
+        c1.caption(f"Autenticado como: {st.session_state[AUTH_USER_KEY]}")
+        if c2.button("Sair"):
+            st.session_state[AUTHENTICATED_KEY] = False
+            st.session_state[AUTH_USER_KEY] = ""
+            st.rerun()
+        return
+
+    st.subheader("🔐 Login")
+    with st.form("auth_login_form"):
+        login = st.text_input("Login")
+        password = st.text_input("Senha", type="password")
+        submit = st.form_submit_button("Entrar", type="primary")
+
+    if submit:
+        authenticated = authenticate_user(DB_PATH, login=login, password=password)
+        if authenticated:
+            st.session_state[AUTHENTICATED_KEY] = True
+            st.session_state[AUTH_USER_KEY] = login.strip().lower()
+            st.rerun()
+        st.error("Login ou senha inválidos.")
+
+    st.stop()
 
 
 def render_db_controls() -> None:
@@ -775,6 +814,8 @@ def main() -> None:
     st.caption(
         "Projeto organizado com Supabase, controle da semana atual, resumo semanal e calendário."
     )
+
+    render_auth_gate()
 
     render_csv_import()
     render_manual_entry()

@@ -28,6 +28,28 @@ pip install -r requirements.txt
 streamlit run dashboard.py
 ```
 
+## Login simples (tabela users)
+O app usa autenticação própria com tabela `users` no Supabase.
+
+1. Rode o SQL em `scripts/supabase_schema.sql` no SQL Editor do Supabase.
+2. Gere o hash da senha com o helper do projeto:
+
+```bash
+PYTHONPATH=. python - <<'PY'
+from hours_app.db import build_password_hash
+print(build_password_hash("SUA_SENHA_FORTE"))
+PY
+```
+
+3. Insira um usuário no Supabase (troque os valores):
+
+```sql
+insert into public.users (login, password_hash, is_active)
+values ('admin', 'COLE_O_HASH_AQUI', true);
+```
+
+No login do app, use esse `login` e a senha original.
+
 ## Resetar o banco
 Opção 1 (pela interface):
 - No topo do dashboard, seção **Banco** → marque confirmação → **Resetar banco**.
