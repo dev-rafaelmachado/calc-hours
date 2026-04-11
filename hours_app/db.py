@@ -138,11 +138,7 @@ def update_entry(
 
 def delete_entry(db_path: str | Path | None, entry_id: int) -> int:
     response = (
-        connect(db_path)
-        .table(SUPABASE_TABLE)
-        .delete()
-        .eq("id", entry_id)
-        .execute()
+        connect(db_path).table(SUPABASE_TABLE).delete().eq("id", entry_id).execute()
     )
     return len(response.data or [])
 
@@ -192,11 +188,5 @@ def fetch_entries(
 
 
 def reset_entries(db_path: str | Path | None = None) -> int:
-    response = (
-        connect(db_path)
-        .table(SUPABASE_TABLE)
-        .delete()
-        .neq("id", 0)
-        .execute()
-    )
+    response = connect(db_path).table(SUPABASE_TABLE).delete().neq("id", 0).execute()
     return len(response.data or [])

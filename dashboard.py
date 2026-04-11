@@ -44,7 +44,9 @@ def bootstrap_db() -> None:
 
 def render_db_controls() -> None:
     st.subheader("🗄️ Banco")
-    st.caption("Use para apagar os registros no Supabase quando quiser começar do zero.")
+    st.caption(
+        "Use para apagar os registros no Supabase quando quiser começar do zero."
+    )
 
     confirm_reset = st.checkbox(
         "Confirmar reset total (apaga todos os registros)", value=False
