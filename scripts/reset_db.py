@@ -1,14 +1,11 @@
-from pathlib import Path
+from hours_app.db import reset_entries
 
-DB_PATH = Path(__file__).resolve().parents[1] / "data" / "hours.db"
+DB_PATH = None
 
 
 def main() -> None:
-    if DB_PATH.exists():
-        DB_PATH.unlink()
-        print(f"Banco removido: {DB_PATH}")
-    else:
-        print(f"Banco não existe: {DB_PATH}")
+    deleted = reset_entries(DB_PATH)
+    print(f"Registros removidos no Supabase: {deleted}")
 
 
 if __name__ == "__main__":

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from io import StringIO
-from pathlib import Path
 
 import pandas as pd
 import streamlit as st
@@ -18,6 +17,7 @@ from hours_app.db import (
     init_db,
     insert_entry,
     insert_many,
+    reset_entries,
     update_entry,
 )
 from hours_app.services import (
@@ -35,17 +35,16 @@ from hours_app.time_utils import (
     parse_hhmm,
 )
 
-DB_PATH = Path("data/hours.db")
+DB_PATH = None
 
 
 def bootstrap_db() -> None:
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     init_db(DB_PATH)
 
 
 def render_db_controls() -> None:
     st.subheader("🗄️ Banco")
-    st.caption("Use para resetar o banco SQLite quando quiser começar do zero.")
+    st.caption("Use para apagar os registros no Supabase quando quiser começar do zero.")
 
     confirm_reset = st.checkbox(
         "Confirmar reset total (apaga todos os registros)", value=False
@@ -55,11 +54,10 @@ def render_db_controls() -> None:
             st.warning("Marque a confirmação antes de resetar.")
             return
 
-        if DB_PATH.exists():
-            DB_PATH.unlink()
-
-        bootstrap_db()
-        st.success("Banco resetado com sucesso.")
+        deleted_count = reset_entries(DB_PATH)
+        st.success(
+            f"Banco resetado com sucesso. {deleted_count} registro(s) removido(s)."
+        )
         st.rerun()
 
 
@@ -176,7 +174,7 @@ def render_manual_entry() -> None:
                 total_minutes=total,
                 source="manual",
             )
-            st.success("Horário salvo no SQLite.")
+            st.success("Horário salvo no Supabase.")
 
 
 def render_edit_past_entries(entries: pd.DataFrame) -> None:
@@ -480,7 +478,7 @@ def render_csv_import() -> None:
             records = parse_csv_to_records(uploaded, reference_monday)
             total_rows += insert_many(DB_PATH, records)
 
-        st.success(f"{total_rows} registro(s) importado(s) para o SQLite.")
+        st.success(f"{total_rows} registro(s) importado(s) para o Supabase.")
 
 
 def render_simulacao_livre(df: pd.DataFrame) -> None:
@@ -773,7 +771,7 @@ def main() -> None:
 
     st.title("⏱️ Hours Commander")
     st.caption(
-        "Projeto organizado com SQLite, controle da semana atual, resumo semanal e calendário."
+        "Projeto organizado com Supabase, controle da semana atual, resumo semanal e calendário."
     )
 
     render_csv_import()

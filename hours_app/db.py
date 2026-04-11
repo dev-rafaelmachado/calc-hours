@@ -1,38 +1,64 @@
 from __future__ import annotations
 
-import sqlite3
+import os
+from datetime import date
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
+from dotenv import load_dotenv
+from supabase import Client, create_client
 
-SCHEMA = """
-CREATE TABLE IF NOT EXISTS time_entries (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    work_date TEXT NOT NULL,
-    start_time TEXT NOT NULL,
-    lunch_start_time TEXT NOT NULL,
-    lunch_end_time TEXT NOT NULL,
-    end_time TEXT NOT NULL,
-    total_minutes INTEGER NOT NULL,
-    source TEXT NOT NULL DEFAULT 'manual',
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
+load_dotenv()
 
-CREATE INDEX IF NOT EXISTS idx_time_entries_work_date ON time_entries(work_date);
-"""
+SUPABASE_URL = os.getenv("SUPABASE_URL", "").strip()
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY", "").strip()
+SUPABASE_KEY = SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY
+SUPABASE_TABLE = os.getenv("SUPABASE_TABLE", "time_entries").strip() or "time_entries"
+
+_client: Client | None = None
 
 
-def connect(db_path: str | Path) -> sqlite3.Connection:
-    return sqlite3.connect(str(db_path), check_same_thread=False)
+def _require_env() -> None:
+    if SUPABASE_URL and SUPABASE_KEY:
+        return
+    raise RuntimeError(
+        "Supabase não configurado. Defina SUPABASE_URL e uma chave "
+        "(SUPABASE_SERVICE_ROLE_KEY ou SUPABASE_ANON_KEY) no .env."
+    )
 
 
-def init_db(db_path: str | Path) -> None:
-    with connect(db_path) as conn:
-        conn.executescript(SCHEMA)
+def connect(db_path: str | Path | None = None) -> Client:
+    global _client
+    _require_env()
+    if _client is None:
+        _client = create_client(SUPABASE_URL, SUPABASE_KEY)
+    return _client
+
+
+def init_db(db_path: str | Path | None = None) -> None:
+    connect(db_path)
+
+
+def _normalize_record(rec: dict[str, Any]) -> dict[str, Any]:
+    work_date = rec.get("work_date")
+    if isinstance(work_date, date):
+        work_date = work_date.isoformat()
+
+    return {
+        "work_date": str(work_date),
+        "start_time": str(rec.get("start_time", "")),
+        "lunch_start_time": str(rec.get("lunch_start_time", "")),
+        "lunch_end_time": str(rec.get("lunch_end_time", "")),
+        "end_time": str(rec.get("end_time", "")),
+        "total_minutes": int(rec.get("total_minutes", 0)),
+        "source": str(rec.get("source", "manual")),
+    }
 
 
 def insert_entry(
-    db_path: str | Path,
+    db_path: str | Path | None,
     work_date: str,
     start_time: str,
     lunch_start_time: str,
@@ -41,68 +67,45 @@ def insert_entry(
     total_minutes: int,
     source: str = "manual",
 ) -> None:
-    sql = """
-    INSERT INTO time_entries (
-        work_date,
-        start_time,
-        lunch_start_time,
-        lunch_end_time,
-        end_time,
-        total_minutes,
-        source
-    ) VALUES (?, ?, ?, ?, ?, ?, ?)
-    """
-    with connect(db_path) as conn:
-        conn.execute(
-            sql,
-            (
-                work_date,
-                start_time,
-                lunch_start_time,
-                lunch_end_time,
-                end_time,
-                total_minutes,
-                source,
-            ),
-        )
+    payload = _normalize_record(
+        {
+            "work_date": work_date,
+            "start_time": start_time,
+            "lunch_start_time": lunch_start_time,
+            "lunch_end_time": lunch_end_time,
+            "end_time": end_time,
+            "total_minutes": total_minutes,
+            "source": source,
+        }
+    )
+    connect(db_path).table(SUPABASE_TABLE).insert(payload).execute()
 
 
-def insert_many(db_path: str | Path, records: list[dict]) -> int:
+def insert_many(db_path: str | Path | None, records: list[dict]) -> int:
     if not records:
         return 0
 
-    sql = """
-    INSERT INTO time_entries (
-        work_date,
-        start_time,
-        lunch_start_time,
-        lunch_end_time,
-        end_time,
-        total_minutes,
-        source
-    ) VALUES (?, ?, ?, ?, ?, ?, ?)
-    """
-
-    values = [
-        (
-            rec["work_date"],
-            rec["start_time"],
-            rec["lunch_start_time"],
-            rec["lunch_end_time"],
-            rec["end_time"],
-            rec["total_minutes"],
-            rec.get("source", "csv"),
+    payload = [
+        _normalize_record(
+            {
+                "work_date": rec["work_date"],
+                "start_time": rec["start_time"],
+                "lunch_start_time": rec["lunch_start_time"],
+                "lunch_end_time": rec["lunch_end_time"],
+                "end_time": rec["end_time"],
+                "total_minutes": rec["total_minutes"],
+                "source": rec.get("source", "csv"),
+            }
         )
         for rec in records
     ]
 
-    with connect(db_path) as conn:
-        conn.executemany(sql, values)
-    return len(values)
+    connect(db_path).table(SUPABASE_TABLE).insert(payload).execute()
+    return len(payload)
 
 
 def update_entry(
-    db_path: str | Path,
+    db_path: str | Path | None,
     entry_id: int,
     work_date: str,
     start_time: str,
@@ -111,74 +114,89 @@ def update_entry(
     end_time: str,
     total_minutes: int,
 ) -> int:
-    sql = """
-    UPDATE time_entries
-    SET
-        work_date = ?,
-        start_time = ?,
-        lunch_start_time = ?,
-        lunch_end_time = ?,
-        end_time = ?,
-        total_minutes = ?
-    WHERE id = ?
-    """
+    payload = _normalize_record(
+        {
+            "work_date": work_date,
+            "start_time": start_time,
+            "lunch_start_time": lunch_start_time,
+            "lunch_end_time": lunch_end_time,
+            "end_time": end_time,
+            "total_minutes": total_minutes,
+        }
+    )
+    payload.pop("source", None)
 
-    with connect(db_path) as conn:
-        cursor = conn.execute(
-            sql,
-            (
-                work_date,
-                start_time,
-                lunch_start_time,
-                lunch_end_time,
-                end_time,
-                total_minutes,
-                entry_id,
-            ),
+    response = (
+        connect(db_path)
+        .table(SUPABASE_TABLE)
+        .update(payload)
+        .eq("id", entry_id)
+        .execute()
+    )
+    return len(response.data or [])
+
+
+def delete_entry(db_path: str | Path | None, entry_id: int) -> int:
+    response = (
+        connect(db_path)
+        .table(SUPABASE_TABLE)
+        .delete()
+        .eq("id", entry_id)
+        .execute()
+    )
+    return len(response.data or [])
+
+
+def fetch_entries(
+    db_path: str | Path | None,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> pd.DataFrame:
+    query = (
+        connect(db_path)
+        .table(SUPABASE_TABLE)
+        .select(
+            "id,work_date,start_time,lunch_start_time,"
+            "lunch_end_time,end_time,total_minutes,source,created_at"
         )
-        return int(cursor.rowcount)
-
-
-def delete_entry(db_path: str | Path, entry_id: int) -> int:
-    sql = "DELETE FROM time_entries WHERE id = ?"
-
-    with connect(db_path) as conn:
-        cursor = conn.execute(sql, (entry_id,))
-        return int(cursor.rowcount)
-
-
-def fetch_entries(db_path: str | Path, start_date: str | None = None, end_date: str | None = None) -> pd.DataFrame:
-    clauses = []
-    params: list[str] = []
+        .order("work_date")
+        .order("start_time")
+    )
 
     if start_date:
-        clauses.append("work_date >= ?")
-        params.append(start_date)
+        query = query.gte("work_date", start_date)
     if end_date:
-        clauses.append("work_date <= ?")
-        params.append(end_date)
+        query = query.lte("work_date", end_date)
 
-    where_sql = f"WHERE {' AND '.join(clauses)}" if clauses else ""
-    query = f"""
-    SELECT
-        id,
-        work_date,
-        start_time,
-        lunch_start_time,
-        lunch_end_time,
-        end_time,
-        total_minutes,
-        source,
-        created_at
-    FROM time_entries
-    {where_sql}
-    ORDER BY work_date, start_time
-    """
-
-    with connect(db_path) as conn:
-        df = pd.read_sql_query(query, conn, params=params)
+    response = query.execute()
+    df = pd.DataFrame(response.data or [])
 
     if not df.empty:
         df["work_date"] = pd.to_datetime(df["work_date"]).dt.date
+    else:
+        df = pd.DataFrame(
+            columns=[
+                "id",
+                "work_date",
+                "start_time",
+                "lunch_start_time",
+                "lunch_end_time",
+                "end_time",
+                "total_minutes",
+                "source",
+                "created_at",
+            ]
+        )
 
     return df
+
+
+def reset_entries(db_path: str | Path | None = None) -> int:
+    response = (
+        connect(db_path)
+        .table(SUPABASE_TABLE)
+        .delete()
+        .neq("id", 0)
+        .execute()
+    )
+    return len(response.data or [])

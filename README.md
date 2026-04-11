@@ -1,9 +1,9 @@
 # Hours Commander
 
-Dashboard PJ organizado com persistência em SQLite.
+Dashboard PJ organizado com persistência em Supabase.
 
 ## O que tem agora
-- Banco SQLite para guardar horários (`data/hours.db`)
+- Banco Supabase (Postgres) para guardar horários
 - Controle da semana atual (quanto trabalhou e quanto falta para 40h)
 - Resumo por semana
 - Calendário mensal com horas por dia
@@ -15,7 +15,7 @@ Dashboard PJ organizado com persistência em SQLite.
 
 ## Estrutura
 - `dashboard.py`: app Streamlit
-- `hours_app/db.py`: acesso ao SQLite
+- `hours_app/db.py`: acesso ao Supabase
 - `hours_app/services.py`: regras de semana, resumo, previsão e calendário
 - `hours_app/time_utils.py`: cálculo de minutos/horários
 - `hours_app/constants.py`: constantes e helpers de semana
