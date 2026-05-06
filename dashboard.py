@@ -735,11 +735,126 @@ def render_monthly_metrics(df: pd.DataFrame) -> None:
     st.markdown("**Detalhe semanal no mês**")
     st.dataframe(week_details, width="stretch", hide_index=True)
 
+    indicators_df = pd.DataFrame(
+        [
+            {"Indicador": "Horas no mês", "Valor": metrics["total_hhmm"]},
+            {"Indicador": "Meta do mês", "Valor": metrics["target_hhmm"]},
+            {
+                "Indicador": "Falta para fechar mês",
+                "Valor": metrics["remaining_hhmm"],
+            },
+            {"Indicador": "Extra no mês", "Valor": metrics["extra_hhmm"]},
+            {
+                "Indicador": "Horas extras por semana (soma)",
+                "Valor": metrics["weekly_overtime_hhmm"],
+            },
+            {
+                "Indicador": "Horas faltantes de semanas",
+                "Valor": metrics["weekly_debt_hhmm"],
+            },
+        ]
+    )
+
+    csv_buffer = StringIO()
+    indicators_df.to_csv(csv_buffer, index=False)
+    csv_buffer.write("\n")
+    csv_buffer.write("Detalhe semanal no mês\n")
+    week_details.to_csv(csv_buffer, index=False)
+
+    st.download_button(
+        "Baixar métricas do mês (CSV)",
+        data=csv_buffer.getvalue().encode("utf-8-sig"),
+        file_name=f"metricas_mes_{selected_month.strftime('%Y_%m')}.csv",
+        mime="text/csv",
+        width="stretch",
+    )
+
+
+def render_monthly_csv_export(df: pd.DataFrame) -> None:
+    st.subheader("📤 Exportar CSV mensal")
+    selected_month = st.date_input(
+        "Mês para exportação",
+        value=date.today().replace(day=1),
+        key="month_export_picker",
+    )
+    selected_month = selected_month.replace(day=1)
+
+    if df.empty:
+        st.info("Sem registros para exportar.")
+        return
+
+    month_start = selected_month
+    month_end = (pd.Timestamp(month_start) + pd.offsets.MonthEnd(0)).date()
+
+    in_month = (df["work_date"].dt.date >= month_start) & (
+        df["work_date"].dt.date <= month_end
+    )
+    month_rows = df.loc[in_month].copy().sort_values(["work_date", "start_time"])
+
+    if month_rows.empty:
+        st.info("Não há registros no mês selecionado.")
+        return
+
+    def lunch_duration_hhmm(row: pd.Series) -> str:
+        try:
+            lunch_start = parse_hhmm(str(row["lunch_start_time"]))
+            lunch_end = parse_hhmm(str(row["lunch_end_time"]))
+            return minutes_to_duration_hhmm(max(lunch_end - lunch_start, 0))
+        except Exception:
+            return "00:00"
+
+    month_rows["Dia"] = month_rows["work_date"].dt.strftime("%d/%m/%Y")
+    month_rows["Entrada"] = month_rows["start_time"].astype(str)
+    month_rows["Saída almoço"] = month_rows["lunch_start_time"].astype(str)
+    month_rows["Almoço"] = month_rows.apply(lunch_duration_hhmm, axis=1)
+    month_rows["Volta almoço"] = month_rows["lunch_end_time"].astype(str)
+    month_rows["Saída"] = month_rows["end_time"].astype(str)
+    month_rows["Total HH:MM"] = month_rows["total_minutes"].apply(
+        minutes_to_duration_hhmm
+    )
+
+    export_df = month_rows[
+        [
+            "Dia",
+            "Entrada",
+            "Saída almoço",
+            "Almoço",
+            "Volta almoço",
+            "Saída",
+            "Total HH:MM",
+        ]
+    ]
+    st.dataframe(export_df, width="stretch", hide_index=True)
+
+    csv_data = export_df.to_csv(index=False).encode("utf-8-sig")
+    filename = f"horas_{selected_month.strftime('%Y_%m')}.csv"
+    st.download_button(
+        "Baixar CSV do mês",
+        data=csv_data,
+        file_name=filename,
+        mime="text/csv",
+        width="stretch",
+    )
+
 
 def render_weekly_summary(df: pd.DataFrame) -> None:
     st.subheader("🧾 Resumo por semana")
     summary_df = weekly_summary(df)
+
+    if summary_df.empty:
+        st.info("Sem dados no resumo por semana para exportar.")
+        return
+
     st.dataframe(summary_df, width="stretch", hide_index=True)
+
+    csv_data = summary_df.to_csv(index=False).encode("utf-8-sig")
+    st.download_button(
+        "Baixar resumo por semana (CSV)",
+        data=csv_data,
+        file_name="resumo_por_semana.csv",
+        mime="text/csv",
+        width="stretch",
+    )
 
 
 def render_calendar(df: pd.DataFrame) -> None:
@@ -843,6 +958,9 @@ def main() -> None:
 
     st.divider()
     render_monthly_metrics(enriched)
+
+    st.divider()
+    render_monthly_csv_export(enriched)
 
     st.divider()
     render_weekly_summary(enriched)
