@@ -1,16 +1,12 @@
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from io import StringIO
 
 import pandas as pd
 import streamlit as st
 
-from hours_app.constants import (
-    DAY_LABELS,
-    WEEK_TARGET_MINUTES,
-    week_start_for,
-)
+from hours_app.constants import DAY_LABELS, DAY_TARGET_MINUTES, week_end_for, week_start_for
 from hours_app.db import (
     authenticate_user,
     delete_entry,
@@ -18,8 +14,11 @@ from hours_app.db import (
     init_db,
     insert_entry,
     insert_many,
+    get_remuneration_config,
     reset_entries,
+    update_entries_by_date,
     update_entry,
+    update_remuneration_config,
 )
 from hours_app.services import (
     add_week_fields,
@@ -27,6 +26,7 @@ from hours_app.services import (
     current_week_summary,
     forecast_for_current_week,
     month_metrics,
+    remuneration_breakdown,
     weekly_summary,
 )
 from hours_app.time_utils import (
@@ -39,6 +39,7 @@ from hours_app.time_utils import (
 DB_PATH = None
 AUTHENTICATED_KEY = "authenticated"
 AUTH_USER_KEY = "auth_user"
+WORK_MODE_OPTIONS = ["", "Home office", "Presencial"]
 
 
 def bootstrap_db() -> None:
@@ -50,6 +51,70 @@ def _ensure_auth_state() -> None:
         st.session_state[AUTHENTICATED_KEY] = False
     if AUTH_USER_KEY not in st.session_state:
         st.session_state[AUTH_USER_KEY] = ""
+
+
+def _ensure_day_target_state() -> None:
+    if "day_target_hours" not in st.session_state:
+        st.session_state["day_target_hours"] = DAY_TARGET_MINUTES / 60
+
+
+def render_settings() -> int:
+    _ensure_day_target_state()
+    st.sidebar.subheader("Configurações")
+    hours = st.sidebar.number_input(
+        "Horas por dia útil",
+        min_value=0.0,
+        max_value=24.0,
+        step=0.5,
+        value=float(st.session_state["day_target_hours"]),
+    )
+    st.session_state["day_target_hours"] = hours
+
+    config = get_remuneration_config(DB_PATH)
+    with st.sidebar.expander("Configuração de remuneração", expanded=True):
+        with st.form("remuneration_config_form"):
+            valor_base = st.number_input(
+                "Valor base (mensal)",
+                min_value=0.0,
+                value=float(config.get("valor_base", 0)),
+                step=100.0,
+                key="remuneration_valor_base",
+            )
+            valor_hora = st.number_input(
+                "Valor por hora",
+                min_value=0.0,
+                value=float(config.get("valor_hora", 0)),
+                step=1.0,
+                key="remuneration_valor_hora",
+            )
+            valor_bonus = st.number_input(
+                "Valor do bônus",
+                min_value=0.0,
+                value=float(config.get("valor_bonus", 0)),
+                step=50.0,
+                key="remuneration_valor_bonus",
+            )
+            valor_aux_transporte = st.number_input(
+                "Auxílio-transporte por dia presencial",
+                min_value=0.0,
+                value=float(config.get("valor_aux_transporte", 0)),
+                step=1.0,
+                key="remuneration_valor_aux",
+            )
+
+            save_clicked = st.form_submit_button("Salvar configurações", type="primary")
+            if save_clicked:
+                update_remuneration_config(
+                    DB_PATH,
+                    config_id=config.get("id"),
+                    valor_base=valor_base,
+                    valor_hora=valor_hora,
+                    valor_bonus=valor_bonus,
+                    valor_aux_transporte=valor_aux_transporte,
+                )
+                st.success("Configurações salvas.")
+
+    return max(int(round(hours * 60)), 0)
 
 
 def render_auth_gate() -> None:
@@ -120,6 +185,17 @@ def normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
         renamed[col] = aliases.get(key, key)
 
     return df.rename(columns=renamed)
+
+
+def _normalize_work_mode(value: str | None) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def _format_currency(value: float) -> str:
+    return f"R$ {value:,.2f}"
 
 
 def parse_csv_to_records(uploaded_file, reference_monday: date) -> list[dict]:
@@ -196,14 +272,27 @@ def render_manual_entry() -> None:
             "Saída", value=datetime.strptime("18:00", "%H:%M").time()
         )
 
+        c1, c2 = st.columns(2)
+        is_holiday = c1.checkbox("Marcar como feriado", value=False)
+        work_mode = c2.selectbox("Modo", options=WORK_MODE_OPTIONS, index=0)
+        if is_holiday:
+            st.caption("Feriado: horários não são contabilizados nas metas.")
+
         save = st.form_submit_button("Salvar no banco")
 
         if save:
-            start = start_time.strftime("%H:%M")
-            lunch_s = lunch_start.strftime("%H:%M")
-            lunch_e = lunch_end.strftime("%H:%M")
-            end = end_time.strftime("%H:%M")
-            total = compute_total_minutes(start, lunch_s, lunch_e, end)
+            if is_holiday:
+                start = "00:00"
+                lunch_s = "00:00"
+                lunch_e = "00:00"
+                end = "00:00"
+                total = 0
+            else:
+                start = start_time.strftime("%H:%M")
+                lunch_s = lunch_start.strftime("%H:%M")
+                lunch_e = lunch_end.strftime("%H:%M")
+                end = end_time.strftime("%H:%M")
+                total = compute_total_minutes(start, lunch_s, lunch_e, end)
 
             insert_entry(
                 DB_PATH,
@@ -214,6 +303,8 @@ def render_manual_entry() -> None:
                 end_time=end,
                 total_minutes=total,
                 source="manual",
+                is_holiday=is_holiday,
+                work_mode=_normalize_work_mode(work_mode),
             )
             st.success("Horário salvo no Supabase.")
 
@@ -279,6 +370,27 @@ def render_edit_past_entries(entries: pd.DataFrame) -> None:
             key=f"edit_end_{selected_id}",
         )
 
+        holiday_value = bool(row.get("is_holiday", False))
+        work_mode_value = row.get("work_mode")
+        mode_index = (
+            WORK_MODE_OPTIONS.index(work_mode_value)
+            if work_mode_value in WORK_MODE_OPTIONS
+            else 0
+        )
+
+        c6, c7 = st.columns(2)
+        is_holiday = c6.checkbox(
+            "Marcar como feriado",
+            value=holiday_value,
+            key=f"edit_holiday_{selected_id}",
+        )
+        work_mode = c7.selectbox(
+            "Modo",
+            options=WORK_MODE_OPTIONS,
+            index=mode_index,
+            key=f"edit_work_mode_{selected_id}",
+        )
+
         confirm_delete = st.checkbox(
             "Confirmar exclusão deste registro",
             value=False,
@@ -305,6 +417,8 @@ def render_edit_past_entries(entries: pd.DataFrame) -> None:
                 lunch_end_time=lunch_e,
                 end_time=end,
                 total_minutes=total,
+                is_holiday=is_holiday,
+                work_mode=_normalize_work_mode(work_mode),
             )
             if changed:
                 st.success("Registro atualizado.")
@@ -322,7 +436,11 @@ def render_edit_past_entries(entries: pd.DataFrame) -> None:
                 st.warning("Nenhum registro foi deletado.")
 
 
-def render_live_today_session(entries: pd.DataFrame, enriched: pd.DataFrame) -> None:
+def render_live_today_session(
+    entries: pd.DataFrame,
+    enriched: pd.DataFrame,
+    day_target_minutes: int,
+) -> None:
     st.subheader("🟢 Dia atual em andamento")
     st.caption(
         "Você preenche aos poucos. A cada novo horário, a previsão do dia e dos próximos dias da semana é recalculada."
@@ -334,6 +452,33 @@ def render_live_today_session(entries: pd.DataFrame, enriched: pd.DataFrame) -> 
         if not entries.empty
         else pd.DataFrame()
     )
+
+    holiday_default = False
+    work_mode_default = None
+    if not today_saved.empty:
+        holiday_default = bool(today_saved["is_holiday"].fillna(False).any())
+        mode_candidates = today_saved["work_mode"].dropna().tolist()
+        work_mode_default = mode_candidates[0] if mode_candidates else None
+
+    c1, c2 = st.columns(2)
+    is_holiday_today = c1.checkbox(
+        "Hoje é feriado",
+        value=holiday_default,
+        key="live_today_holiday",
+    )
+    mode_index = (
+        WORK_MODE_OPTIONS.index(work_mode_default)
+        if work_mode_default in WORK_MODE_OPTIONS
+        else 0
+    )
+    work_mode = c2.selectbox(
+        "Modo do dia",
+        options=WORK_MODE_OPTIONS,
+        index=mode_index,
+        key="live_today_work_mode",
+    )
+    if is_holiday_today:
+        st.caption("Feriado: horas de hoje não entram nas metas da semana/mês.")
 
     start_value = st.text_input("Entrada (HH:MM)", value="", key="live_today_start")
     lunch_start_value = st.text_input(
@@ -360,13 +505,48 @@ def render_live_today_session(entries: pd.DataFrame, enriched: pd.DataFrame) -> 
     if invalid_fields:
         st.warning(f"Formato inválido em: {', '.join(invalid_fields)}. Use HH:MM.")
 
+    planning_df = enriched.copy()
+    if is_holiday_today:
+        holiday_dates = set()
+        if not planning_df.empty and "is_holiday" in planning_df.columns:
+            holiday_dates = set(
+                pd.to_datetime(planning_df["work_date"]).dt.date[
+                    planning_df["is_holiday"].fillna(False).astype(bool)
+                ]
+            )
+        if today not in holiday_dates:
+            holiday_row = {col: None for col in planning_df.columns}
+            holiday_row.update(
+                {
+                    "work_date": pd.to_datetime(today),
+                    "start_time": "00:00",
+                    "lunch_start_time": "00:00",
+                    "lunch_end_time": "00:00",
+                    "end_time": "00:00",
+                    "total_minutes": 0,
+                    "source": "holiday_marker",
+                    "created_at": pd.Timestamp.now(),
+                    "is_holiday": True,
+                    "work_mode": _normalize_work_mode(work_mode),
+                    "weekday": today.strftime("%A").lower(),
+                    "day_label": DAY_LABELS.get(today.strftime("%A").lower()),
+                    "week_start": week_start_for(today),
+                    "week_end": week_end_for(today),
+                    "week_key": str(week_start_for(today)),
+                }
+            )
+            planning_df = pd.concat(
+                [planning_df, pd.DataFrame([holiday_row])], ignore_index=True
+            )
+
     projection = build_live_today_projection(
-        enriched,
+        planning_df,
         start_time=start_value,
         lunch_start_time=lunch_start_value,
         lunch_end_time=lunch_end_value,
         end_time=end_value,
         today=today,
+        day_target_minutes=day_target_minutes,
     )
 
     worked_dynamic_minutes = int(projection["details"]["worked_current_week"]) + int(
@@ -383,7 +563,7 @@ def render_live_today_session(entries: pd.DataFrame, enriched: pd.DataFrame) -> 
         "Projeção total da semana", projection["details"]["projected_week_total_human"]
     )
     c3.metric("Trabalhado", minutes_to_human(worked_dynamic_minutes))
-    c4.metric("Falta p/ 40h", minutes_to_human(missing_dynamic_minutes))
+    c4.metric("Falta p/ meta da semana", minutes_to_human(missing_dynamic_minutes))
 
     st.markdown("**Previsão dinâmica para hoje**")
     p1, p2, p3, p4 = st.columns(4)
@@ -398,9 +578,17 @@ def render_live_today_session(entries: pd.DataFrame, enriched: pd.DataFrame) -> 
     else:
         st.dataframe(projection["forecast"], width="stretch", hide_index=True)
 
-    st.markdown("**Horas por dia da semana para fechar meta (40h + compensação)**")
+    st.markdown("**Horas por dia da semana para fechar meta**")
     week_start = week_start_for(today)
     week_dates = [week_start + pd.Timedelta(days=i) for i in range(5)]
+
+    holiday_dates = set()
+    if not planning_df.empty and "is_holiday" in planning_df.columns:
+        holiday_dates = set(
+            pd.to_datetime(planning_df["work_date"]).dt.date[
+                planning_df["is_holiday"].fillna(False).astype(bool)
+            ].tolist()
+        )
 
     actual_by_date: dict[str, int] = {}
     if not enriched.empty:
@@ -431,7 +619,10 @@ def render_live_today_session(entries: pd.DataFrame, enriched: pd.DataFrame) -> 
         d_iso = d_date.isoformat()
         weekday_key = d_date.strftime("%A").lower()
 
-        if d_date < today:
+        if d_date in holiday_dates:
+            value_text = "0h 00m"
+            status = "Feriado"
+        elif d_date < today:
             minutes = actual_by_date.get(d_iso, 0)
             value_text = minutes_to_human(minutes)
             status = "Realizado"
@@ -454,21 +645,24 @@ def render_live_today_session(entries: pd.DataFrame, enriched: pd.DataFrame) -> 
     st.dataframe(pd.DataFrame(week_plan_rows), width="stretch", hide_index=True)
 
     if st.button("Salvar registro do dia atual", type="primary"):
-        if invalid_fields:
+        if invalid_fields and not is_holiday_today:
             st.error("Corrija os horários com formato inválido antes de salvar.")
             return
 
-        filled = [
-            start_value.strip(),
-            lunch_start_value.strip(),
-            lunch_end_value.strip(),
-            end_value.strip(),
-        ]
-        if not all(filled):
-            st.error("Para salvar, preencha os 4 horários.")
-            return
-
-        total = compute_total_minutes(*filled)
+        if is_holiday_today:
+            filled = ["00:00", "00:00", "00:00", "00:00"]
+            total = 0
+        else:
+            filled = [
+                start_value.strip(),
+                lunch_start_value.strip(),
+                lunch_end_value.strip(),
+                end_value.strip(),
+            ]
+            if not all(filled):
+                st.error("Para salvar, preencha os 4 horários.")
+                return
+            total = compute_total_minutes(*filled)
 
         if not today_saved.empty:
             entry_id = int(today_saved.sort_values("created_at").iloc[0]["id"])
@@ -481,6 +675,8 @@ def render_live_today_session(entries: pd.DataFrame, enriched: pd.DataFrame) -> 
                 lunch_end_time=filled[2],
                 end_time=filled[3],
                 total_minutes=total,
+                is_holiday=is_holiday_today,
+                work_mode=_normalize_work_mode(work_mode),
             )
             st.success("Registro de hoje atualizado.")
         else:
@@ -493,6 +689,8 @@ def render_live_today_session(entries: pd.DataFrame, enriched: pd.DataFrame) -> 
                 end_time=filled[3],
                 total_minutes=total,
                 source="manual_live",
+                is_holiday=is_holiday_today,
+                work_mode=_normalize_work_mode(work_mode),
             )
             st.success("Registro de hoje salvo.")
 
@@ -522,7 +720,56 @@ def render_csv_import() -> None:
         st.success(f"{total_rows} registro(s) importado(s) para o Supabase.")
 
 
-def render_simulacao_livre(df: pd.DataFrame) -> None:
+def render_day_metadata(entries: pd.DataFrame) -> None:
+    st.subheader("📌 Marcar feriado / modo do dia")
+    st.caption("Use para marcar datas sem precisar inserir horários.")
+
+    c1, c2, c3 = st.columns(3)
+    selected_date = c1.date_input("Data", value=date.today())
+    is_holiday = c2.checkbox("Feriado", value=False)
+    work_mode = c3.selectbox("Modo", options=WORK_MODE_OPTIONS, index=0)
+
+    if st.button("Salvar marcação", type="primary"):
+        normalized_mode = _normalize_work_mode(work_mode)
+        if not is_holiday and not normalized_mode:
+            st.warning("Selecione feriado ou um modo para salvar.")
+            return
+
+        existing = (
+            entries[entries["work_date"] == selected_date]
+            if not entries.empty
+            else pd.DataFrame()
+        )
+        if not existing.empty:
+            updated = update_entries_by_date(
+                DB_PATH,
+                work_date=selected_date.isoformat(),
+                is_holiday=is_holiday,
+                work_mode=normalized_mode,
+            )
+            if updated:
+                st.success("Marcações atualizadas para o dia selecionado.")
+            else:
+                st.warning("Nenhum registro foi atualizado.")
+        else:
+            insert_entry(
+                DB_PATH,
+                work_date=selected_date.isoformat(),
+                start_time="00:00",
+                lunch_start_time="00:00",
+                lunch_end_time="00:00",
+                end_time="00:00",
+                total_minutes=0,
+                source="day_marker",
+                is_holiday=is_holiday,
+                work_mode=normalized_mode,
+            )
+            st.success("Marcações salvas para o dia selecionado.")
+
+        st.rerun()
+
+
+def render_simulacao_livre(df: pd.DataFrame, day_target_minutes: int) -> None:
     st.subheader("🧪 simulação livre")
     st.caption("Visão interativa da semana atual. As edições não são salvas no banco.")
 
@@ -530,7 +777,9 @@ def render_simulacao_livre(df: pd.DataFrame) -> None:
     week_start = week_start_for(today)
     week_dates = [week_start + pd.Timedelta(days=i) for i in range(5)]
 
-    forecast, details = forecast_for_current_week(df, today=today)
+    forecast, details = forecast_for_current_week(
+        df, today=today, day_target_minutes=day_target_minutes
+    )
     forecast_map = {}
     if not forecast.empty:
         forecast_map = {
@@ -606,6 +855,13 @@ def render_simulacao_livre(df: pd.DataFrame) -> None:
     week_total_minutes = 0
     worked_until_today_minutes = 0
     invalid_rows = []
+    holiday_dates = set()
+    if not df.empty and "is_holiday" in df.columns:
+        holiday_dates = set(
+            df["work_date"].dt.date[
+                df["is_holiday"].fillna(False).astype(bool)
+            ].tolist()
+        )
 
     for idx, row in edited_df.iterrows():
         try:
@@ -619,40 +875,45 @@ def render_simulacao_livre(df: pd.DataFrame) -> None:
             invalid_rows.append(idx + 1)
             continue
 
-        week_total_minutes += row_minutes
-        if row_date <= today:
-            worked_until_today_minutes += row_minutes
+        if row_date not in holiday_dates:
+            week_total_minutes += row_minutes
+            if row_date <= today:
+                worked_until_today_minutes += row_minutes
 
     if invalid_rows:
         st.warning(
             f"Linhas inválidas na simulação: {invalid_rows}. Use data válida e horários HH:MM."
         )
 
+    business_days = [week_start + timedelta(days=i) for i in range(5)]
+    effective_days = [d for d in business_days if d not in holiday_dates]
+    week_target_minutes = len(effective_days) * max(int(day_target_minutes), 0)
+
     previous_weeks_debt = int(details.get("previous_weeks_debt", 0))
-    missing_40h = max(WEEK_TARGET_MINUTES - week_total_minutes, 0)
-    overtime_vs_40h = max(week_total_minutes - WEEK_TARGET_MINUTES, 0)
+    missing_40h = max(week_target_minutes - week_total_minutes, 0)
+    overtime_vs_40h = max(week_total_minutes - week_target_minutes, 0)
     compensation_remaining = max(previous_weeks_debt - overtime_vs_40h, 0)
     plus_hours = max(
-        week_total_minutes - (WEEK_TARGET_MINUTES + previous_weeks_debt), 0
+        week_total_minutes - (week_target_minutes + previous_weeks_debt), 0
     )
 
     st.markdown("**Resultados da simulação**")
     c1, c2, c3, c4, c5 = st.columns(5)
     c1.metric("Projeção total da semana", minutes_to_human(week_total_minutes))
     c2.metric("Trabalhado", minutes_to_human(worked_until_today_minutes))
-    c3.metric("Falta p/ 40h", minutes_to_human(missing_40h))
+    c3.metric("Falta p/ meta da semana", minutes_to_human(missing_40h))
     c4.metric("Compensação restante faltante", minutes_to_human(compensation_remaining))
     c5.metric("Quantidade de horas a+ feitas", minutes_to_human(plus_hours))
 
 
-def render_current_week(df: pd.DataFrame) -> None:
+def render_current_week(df: pd.DataFrame, day_target_minutes: int) -> None:
     st.subheader("📅 Controle da semana atual")
-    summary = current_week_summary(df)
+    summary = current_week_summary(df, day_target_minutes=day_target_minutes)
 
     m1, m2, m3 = st.columns(3)
     m1.metric("Semana", f"{summary['week_start']} a {summary['week_end']}")
     m2.metric("Trabalhado", summary["worked_human"])
-    m3.metric("Falta p/ 40h", summary["remaining_human"])
+    m3.metric("Falta p/ meta da semana", summary["remaining_human"])
 
     st.progress(
         summary["progress"],
@@ -677,10 +938,15 @@ def render_current_week(df: pd.DataFrame) -> None:
                 "end_time",
                 "total_minutes",
                 "source",
+                "is_holiday",
+                "work_mode",
             ]
         ].copy()
         view["hours_hhmm"] = view["total_minutes"].apply(minutes_to_duration_hhmm)
         view = view.drop(columns=["total_minutes"])
+        view["is_holiday"] = view["is_holiday"].apply(
+            lambda value: "Sim" if bool(value) else "Não"
+        )
         view.columns = [
             "Data",
             "Dia",
@@ -689,11 +955,15 @@ def render_current_week(df: pd.DataFrame) -> None:
             "Volta almoço",
             "Saída",
             "Origem",
+            "Feriado",
+            "Modo",
             "Horas (HH:MM)",
         ]
         st.dataframe(view, width="stretch", hide_index=True)
 
-    forecast, details = forecast_for_current_week(df)
+    forecast, details = forecast_for_current_week(
+        df, day_target_minutes=day_target_minutes
+    )
     if not forecast.empty:
         st.markdown("**Sugestão para fechar a semana**")
         st.dataframe(forecast, width="stretch", hide_index=True)
@@ -711,7 +981,7 @@ def render_current_week(df: pd.DataFrame) -> None:
     c3.metric("Projeção total da semana", details["projected_week_total_human"])
 
 
-def render_monthly_metrics(df: pd.DataFrame) -> None:
+def render_monthly_metrics(df: pd.DataFrame, day_target_minutes: int) -> None:
     st.subheader("📊 Métricas do mês")
     selected_month = st.date_input(
         "Mês para métricas",
@@ -720,7 +990,9 @@ def render_monthly_metrics(df: pd.DataFrame) -> None:
     )
     selected_month = selected_month.replace(day=1)
 
-    metrics, week_details = month_metrics(df, selected_month)
+    metrics, week_details = month_metrics(
+        df, selected_month, day_target_minutes=day_target_minutes
+    )
 
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Horas no mês", metrics["total_hhmm"])
@@ -768,6 +1040,51 @@ def render_monthly_metrics(df: pd.DataFrame) -> None:
         mime="text/csv",
         width="stretch",
     )
+
+
+def render_remuneration(df: pd.DataFrame, day_target_minutes: int) -> None:
+    st.subheader("💰 Remuneração do mês")
+
+    selected_month = st.date_input(
+        "Mês de referência",
+        value=date.today().replace(day=1),
+        key="remuneration_month_picker",
+    )
+    selected_month = selected_month.replace(day=1)
+
+    config = get_remuneration_config(DB_PATH)
+
+    bonus_applied = st.checkbox("Bateu a meta?", value=False, key="remuneration_bonus")
+
+    breakdown = remuneration_breakdown(
+        df,
+        selected_month,
+        config,
+        day_target_minutes=day_target_minutes,
+        bonus_applied=bonus_applied,
+    )
+
+    st.markdown("**Prévia de remuneração**")
+    r1, r2, r3, r4 = st.columns(4)
+    r1.metric("Salário base", _format_currency(breakdown["valor_base"]))
+    r2.metric("Ajuste por horas", _format_currency(breakdown["ajuste_horas"]))
+    r3.metric("Bônus", _format_currency(breakdown["bonus_total"]))
+    r4.metric("Aux. transporte", _format_currency(breakdown["aux_transporte_total"]))
+
+    st.metric("Remuneração estimada", _format_currency(breakdown["total_remuneracao"]))
+
+    details = pd.DataFrame(
+        [
+            {"Indicador": "Horas trabalhadas", "Valor": f"{breakdown['worked_hours']:.2f}"},
+            {"Indicador": "Meta de horas", "Valor": f"{breakdown['target_hours']:.2f}"},
+            {"Indicador": "Horas excedentes", "Valor": f"{breakdown['horas_excedentes']:.2f}"},
+            {"Indicador": "Horas faltantes", "Valor": f"{breakdown['horas_faltantes']:.2f}"},
+            {"Indicador": "Dias presenciais", "Valor": f"{breakdown['presencial_days']}"},
+        ]
+    )
+    st.dataframe(details, width="stretch", hide_index=True)
+
+    st.button("Gerar Relatório Mensal Final", disabled=True)
 
 
 def render_monthly_csv_export(df: pd.DataFrame) -> None:
@@ -837,9 +1154,9 @@ def render_monthly_csv_export(df: pd.DataFrame) -> None:
     )
 
 
-def render_weekly_summary(df: pd.DataFrame) -> None:
+def render_weekly_summary(df: pd.DataFrame, day_target_minutes: int) -> None:
     st.subheader("🧾 Resumo por semana")
-    summary_df = weekly_summary(df)
+    summary_df = weekly_summary(df, day_target_minutes=day_target_minutes)
 
     if summary_df.empty:
         st.info("Sem dados no resumo por semana para exportar.")
@@ -879,12 +1196,25 @@ def render_calendar(df: pd.DataFrame) -> None:
     else:
         work = df.copy()
         work["work_day"] = work["work_date"].dt.date
+        work["is_holiday"] = work.get("is_holiday", False)
+        work["work_mode"] = work.get("work_mode")
         grouped = work.groupby("work_day", as_index=False).agg(
-            total_minutes=("total_minutes", "sum")
+            total_minutes=("total_minutes", "sum"),
+            is_holiday=("is_holiday", "max"),
+            work_mode=("work_mode", "first"),
         )
         events = [
             {
-                "title": f"{minutes_to_human(int(row['total_minutes']))}",
+                "title": (
+                    "Feriado"
+                    if bool(row["is_holiday"])
+                    else f"{minutes_to_human(int(row['total_minutes']))}"
+                )
+                + (
+                    f" • {row['work_mode']}"
+                    if row.get("work_mode")
+                    else ""
+                ),
                 "start": row["work_day"].isoformat(),
                 "allDay": True,
             }
@@ -932,20 +1262,23 @@ def main() -> None:
 
     render_auth_gate()
 
+    day_target_minutes = render_settings()
+
     render_csv_import()
     render_manual_entry()
 
     entries = fetch_entries(DB_PATH)
+    render_day_metadata(entries)
     enriched = add_week_fields(entries)
 
     st.divider()
-    render_live_today_session(entries, enriched)
+    render_live_today_session(entries, enriched, day_target_minutes)
 
     st.divider()
     render_edit_past_entries(entries)
 
     st.divider()
-    render_simulacao_livre(enriched)
+    render_simulacao_livre(enriched, day_target_minutes)
 
     if entries.empty:
         st.info(
@@ -954,16 +1287,19 @@ def main() -> None:
         st.stop()
 
     st.divider()
-    render_current_week(enriched)
+    render_current_week(enriched, day_target_minutes)
 
     st.divider()
-    render_monthly_metrics(enriched)
+    render_monthly_metrics(enriched, day_target_minutes)
+
+    st.divider()
+    render_remuneration(enriched, day_target_minutes)
 
     st.divider()
     render_monthly_csv_export(enriched)
 
     st.divider()
-    render_weekly_summary(enriched)
+    render_weekly_summary(enriched, day_target_minutes)
 
     st.divider()
     render_calendar(enriched)

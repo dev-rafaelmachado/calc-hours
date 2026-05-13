@@ -5,7 +5,7 @@ from statistics import mean
 
 import pandas as pd
 
-from .constants import DAY_LABELS, WEEK_TARGET_MINUTES, week_end_for, week_start_for
+from .constants import DAY_LABELS, DAY_TARGET_MINUTES, week_end_for, week_start_for
 from .time_utils import compute_total_minutes, minutes_to_duration_hhmm, minutes_to_hhmm, minutes_to_human, parse_hhmm
 
 
@@ -46,6 +46,34 @@ def _rebalance_plan_minutes(plan_rows: list[dict], target_minutes: int) -> None:
                 over -= 1
 
 
+def _holiday_dates(df: pd.DataFrame) -> set[date]:
+    if df.empty or "is_holiday" not in df.columns:
+        return set()
+
+    work_dates = pd.to_datetime(df["work_date"], errors="coerce")
+    flagged = df["is_holiday"].fillna(False).astype(bool)
+    return set(work_dates[flagged].dt.date.dropna().tolist())
+
+
+def _exclude_holidays(df: pd.DataFrame, holiday_dates: set[date]) -> pd.DataFrame:
+    if df.empty or not holiday_dates:
+        return df
+
+    work_days = pd.to_datetime(df["work_date"], errors="coerce").dt.date
+    return df.loc[~work_days.isin(holiday_dates)].copy()
+
+
+def _week_target_minutes(
+    start: date,
+    end: date,
+    day_target_minutes: int,
+    holiday_dates: set[date],
+) -> int:
+    business_days = [d.date() for d in pd.bdate_range(start, end)]
+    effective_days = [d for d in business_days if d not in holiday_dates]
+    return len(effective_days) * max(int(day_target_minutes), 0)
+
+
 def add_week_fields(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return df
@@ -60,19 +88,34 @@ def add_week_fields(df: pd.DataFrame) -> pd.DataFrame:
     return copy
 
 
-def current_week_summary(df: pd.DataFrame, today: date | None = None) -> dict:
+def current_week_summary(
+    df: pd.DataFrame,
+    today: date | None = None,
+    day_target_minutes: int = DAY_TARGET_MINUTES,
+) -> dict:
     today = today or date.today()
     start = week_start_for(today)
     end = week_end_for(today)
 
-    if df.empty:
+    holiday_dates = _holiday_dates(df)
+    non_holiday_df = _exclude_holidays(df, holiday_dates)
+
+    if non_holiday_df.empty:
         worked = 0
     else:
-        in_week = (df["work_date"].dt.date >= start) & (df["work_date"].dt.date <= end)
-        worked = int(df.loc[in_week, "total_minutes"].sum())
+        in_week = (non_holiday_df["work_date"].dt.date >= start) & (
+            non_holiday_df["work_date"].dt.date <= end
+        )
+        worked = int(non_holiday_df.loc[in_week, "total_minutes"].sum())
 
-    remaining = max(WEEK_TARGET_MINUTES - worked, 0)
-    pct = min(worked / WEEK_TARGET_MINUTES, 1.0)
+    target_minutes = _week_target_minutes(
+        start, end, day_target_minutes, holiday_dates
+    )
+    remaining = max(target_minutes - worked, 0)
+    if target_minutes > 0:
+        pct = min(worked / target_minutes, 1.0)
+    else:
+        pct = 1.0
 
     return {
         "week_start": start,
@@ -85,12 +128,21 @@ def current_week_summary(df: pd.DataFrame, today: date | None = None) -> dict:
     }
 
 
-def weekly_summary(df: pd.DataFrame) -> pd.DataFrame:
+def weekly_summary(
+    df: pd.DataFrame,
+    day_target_minutes: int = DAY_TARGET_MINUTES,
+) -> pd.DataFrame:
     if df.empty:
         return pd.DataFrame(columns=["Semana", "Período", "Horas", "Registros", "Status"])
 
+    holiday_dates = _holiday_dates(df)
+    non_holiday_df = _exclude_holidays(df, holiday_dates)
+
+    if non_holiday_df.empty:
+        return pd.DataFrame(columns=["Semana", "Período", "Horas", "Registros", "Status"])
+
     grouped = (
-        df.groupby("week_key", as_index=False)
+        non_holiday_df.groupby("week_key", as_index=False)
         .agg(
             week_start=("week_start", "first"),
             week_end=("week_end", "first"),
@@ -100,12 +152,27 @@ def weekly_summary(df: pd.DataFrame) -> pd.DataFrame:
         .sort_values("week_start", ascending=False)
     )
 
+    grouped["target_minutes"] = grouped.apply(
+        lambda row: _week_target_minutes(
+            row["week_start"],
+            row["week_end"],
+            day_target_minutes,
+            holiday_dates,
+        ),
+        axis=1,
+    )
+
     grouped["Semana"] = grouped["week_start"].astype(str)
     grouped["Período"] = grouped["week_start"].astype(str) + " a " + grouped["week_end"].astype(str)
     grouped["Horas"] = grouped["total_minutes"].apply(minutes_to_human)
     grouped["Registros"] = grouped["records"]
-    grouped["Status"] = grouped["total_minutes"].apply(
-        lambda m: "Meta batida" if m >= WEEK_TARGET_MINUTES else f"Faltam {minutes_to_human(WEEK_TARGET_MINUTES - m)}"
+    grouped["Status"] = grouped.apply(
+        lambda row: "Sem meta" if row["target_minutes"] == 0 else (
+            "Meta batida"
+            if row["total_minutes"] >= row["target_minutes"]
+            else f"Faltam {minutes_to_human(int(row['target_minutes'] - row['total_minutes']))}"
+        ),
+        axis=1,
     )
 
     return grouped[["Semana", "Período", "Horas", "Registros", "Status"]]
@@ -119,31 +186,48 @@ def forecast_for_current_week(
     today_lunch_start_minutes: int | None = None,
     today_lunch_end_minutes: int | None = None,
     today_end_minutes: int | None = None,
+    day_target_minutes: int = DAY_TARGET_MINUTES,
 ) -> tuple[pd.DataFrame, dict]:
     today = today or date.today()
     start = week_start_for(today)
     end = week_end_for(today)
 
+    holiday_dates = _holiday_dates(df)
+
     if df.empty:
+        week_target = _week_target_minutes(start, end, day_target_minutes, holiday_dates)
         return pd.DataFrame(), {
             "worked_current_week": 0,
-            "missing_current_week": WEEK_TARGET_MINUTES,
+            "missing_current_week": week_target,
             "previous_weeks_debt": 0,
-            "target_to_plan": WEEK_TARGET_MINUTES,
+            "target_to_plan": week_target,
             "projected_week_total": 0,
             "projected_week_total_human": minutes_to_human(0),
         }
 
-    hist = df.copy()
+    hist = _exclude_holidays(df, holiday_dates)
+    if hist.empty:
+        week_target = _week_target_minutes(start, end, day_target_minutes, holiday_dates)
+        return pd.DataFrame(), {
+            "worked_current_week": 0,
+            "missing_current_week": week_target,
+            "previous_weeks_debt": 0,
+            "target_to_plan": week_target,
+            "projected_week_total": 0,
+            "projected_week_total_human": minutes_to_human(0),
+        }
+
     hist["weekday"] = hist["work_date"].dt.day_name().str.lower()
 
     current = hist[(hist["work_date"].dt.date >= start) & (hist["work_date"].dt.date <= end)]
-    current_done = set(current["weekday"].tolist())
+    current_done = set(current["work_date"].dt.date.tolist())
 
     remaining_days = [
         (start + timedelta(days=i))
         for i in range(5)
-        if (start + timedelta(days=i)) >= today and (start + timedelta(days=i)).strftime("%A").lower() not in current_done
+        if (start + timedelta(days=i)) >= today
+        and (start + timedelta(days=i)) not in current_done
+        and (start + timedelta(days=i)) not in holiday_dates
     ]
 
     weekly_totals = (
@@ -153,7 +237,18 @@ def forecast_for_current_week(
     )
 
     previous_weeks = weekly_totals[weekly_totals["week_start"] < start]
-    previous_weeks_debt = int((WEEK_TARGET_MINUTES - previous_weeks["total_minutes"]).clip(lower=0).sum())
+    previous_weeks["target_minutes"] = previous_weeks.apply(
+        lambda row: _week_target_minutes(
+            row["week_start"],
+            row["week_start"] + timedelta(days=6),
+            day_target_minutes,
+            holiday_dates,
+        ),
+        axis=1,
+    )
+    previous_weeks_debt = int(
+        (previous_weeks["target_minutes"] - previous_weeks["total_minutes"]).clip(lower=0).sum()
+    )
 
     avg_by_day = hist.groupby("weekday").agg(
         avg_minutes=("total_minutes", "mean"),
@@ -162,7 +257,8 @@ def forecast_for_current_week(
     global_avg = int(round(hist["total_minutes"].mean()))
 
     worked = int(current["total_minutes"].sum())
-    deficit = max(WEEK_TARGET_MINUTES - worked, 0)
+    week_target = _week_target_minutes(start, end, day_target_minutes, holiday_dates)
+    deficit = max(week_target - worked, 0)
     total_target_to_plan = deficit + previous_weeks_debt
 
     if not remaining_days:
@@ -299,17 +395,23 @@ def build_live_today_projection(
     lunch_end_time: str | None = None,
     end_time: str | None = None,
     today: date | None = None,
+    day_target_minutes: int = DAY_TARGET_MINUTES,
 ) -> dict:
     today = today or date.today()
     weekday = today.strftime("%A").lower()
+
+    holiday_dates = _holiday_dates(df)
+    today_is_holiday = today in holiday_dates
 
     if df.empty:
         planning_df = df
     else:
         planning_df = df[df["work_date"].dt.date != today].copy()
 
-    base_forecast, _ = forecast_for_current_week(planning_df, today=today)
-    suggested_today_minutes = 8 * 60
+    base_forecast, _ = forecast_for_current_week(
+        planning_df, today=today, day_target_minutes=day_target_minutes
+    )
+    suggested_today_minutes = 0 if today_is_holiday else max(int(day_target_minutes), 0)
     if not base_forecast.empty:
         today_mask = base_forecast["Data"] == today.isoformat()
         if today_mask.any():
@@ -324,7 +426,12 @@ def build_live_today_projection(
     lunch_end_m = _safe_parse_hhmm(lunch_end_time)
     end_m = _safe_parse_hhmm(end_time)
 
-    if start_m is None:
+    if today_is_holiday:
+        start_m = 0
+        lunch_start_m = 0
+        lunch_end_m = 0
+        end_m = 0
+    elif start_m is None:
         start_m = avg_start
     if lunch_start_m is None:
         lunch_start_m = start_m + avg_first_block
@@ -341,7 +448,7 @@ def build_live_today_projection(
         for value in [start_time, lunch_start_time, lunch_end_time, end_time]
     )
 
-    if all_filled:
+    if all_filled and not today_is_holiday:
         today_minutes = compute_total_minutes(
             str(start_time),
             str(lunch_start_time),
@@ -350,6 +457,8 @@ def build_live_today_projection(
         )
     else:
         today_minutes = max((lunch_start_m - start_m) + (end_m - lunch_end_m), 0)
+        if today_is_holiday:
+            today_minutes = 0
 
     recalculated_forecast, details = forecast_for_current_week(
         planning_df,
@@ -359,6 +468,7 @@ def build_live_today_projection(
         today_lunch_start_minutes=lunch_start_m,
         today_lunch_end_minutes=lunch_end_m,
         today_end_minutes=end_m,
+        day_target_minutes=day_target_minutes,
     )
 
     return {
@@ -373,7 +483,11 @@ def build_live_today_projection(
     }
 
 
-def month_metrics(df: pd.DataFrame, month_date: date) -> tuple[dict, pd.DataFrame]:
+def month_metrics(
+    df: pd.DataFrame,
+    month_date: date,
+    day_target_minutes: int = DAY_TARGET_MINUTES,
+) -> tuple[dict, pd.DataFrame]:
     first_day = month_date.replace(day=1)
     next_month = (first_day.replace(day=28) + timedelta(days=4)).replace(day=1)
     last_day = next_month - timedelta(days=1)
@@ -400,9 +514,13 @@ def month_metrics(df: pd.DataFrame, month_date: date) -> tuple[dict, pd.DataFram
     month_mask = (df["work_date"].dt.date >= first_day) & (df["work_date"].dt.date <= last_day)
     month_df = df.loc[month_mask].copy()
 
+    holiday_dates = _holiday_dates(month_df)
+    month_df = _exclude_holidays(month_df, holiday_dates)
+
     total_minutes = int(month_df["total_minutes"].sum()) if not month_df.empty else 0
-    business_days = len(pd.bdate_range(first_day, last_day))
-    target_minutes = business_days * 8 * 60
+    business_days = [d.date() for d in pd.bdate_range(first_day, last_day)]
+    effective_days = [d for d in business_days if d not in holiday_dates]
+    target_minutes = len(effective_days) * max(int(day_target_minutes), 0)
     remaining_minutes = max(target_minutes - total_minutes, 0)
     extra_minutes = max(total_minutes - target_minutes, 0)
 
@@ -416,8 +534,17 @@ def month_metrics(df: pd.DataFrame, month_date: date) -> tuple[dict, pd.DataFram
             .agg(week_end=("week_end", "first"), total_minutes=("total_minutes", "sum"))
             .sort_values("week_start")
         )
-        week_details["extra_minutes"] = (week_details["total_minutes"] - WEEK_TARGET_MINUTES).clip(lower=0)
-        week_details["debt_minutes"] = (WEEK_TARGET_MINUTES - week_details["total_minutes"]).clip(lower=0)
+        week_details["target_minutes"] = week_details.apply(
+            lambda row: _week_target_minutes(
+                row["week_start"],
+                row["week_end"],
+                day_target_minutes,
+                holiday_dates,
+            ),
+            axis=1,
+        )
+        week_details["extra_minutes"] = (week_details["total_minutes"] - week_details["target_minutes"]).clip(lower=0)
+        week_details["debt_minutes"] = (week_details["target_minutes"] - week_details["total_minutes"]).clip(lower=0)
         weekly_overtime_minutes = int(week_details["extra_minutes"].sum())
         weekly_debt_minutes = int(week_details["debt_minutes"].sum())
 
@@ -458,12 +585,27 @@ def month_calendar(df: pd.DataFrame, month_date: date) -> tuple[pd.DataFrame, pd
 
     if df.empty:
         calendar_df["total_minutes"] = 0
+        calendar_df["is_holiday"] = False
+        calendar_df["work_mode"] = None
     else:
         work = df.copy()
         work["date"] = work["work_date"].dt.normalize()
-        work = work.groupby("date", as_index=False).agg(total_minutes=("total_minutes", "sum"))
+        work["is_holiday"] = work.get("is_holiday", False)
+        work["work_mode"] = work.get("work_mode")
+        work = work.groupby("date", as_index=False).agg(
+            total_minutes=("total_minutes", "sum"),
+            is_holiday=("is_holiday", "max"),
+            work_mode=("work_mode", "first"),
+        )
         calendar_df = calendar_df.merge(work, left_on="work_date", right_on="date", how="left")
         calendar_df["total_minutes"] = calendar_df["total_minutes"].fillna(0).astype(int)
+        calendar_df["is_holiday"] = calendar_df["is_holiday"].fillna(False).astype(bool)
+        calendar_df["work_mode"] = calendar_df["work_mode"].where(
+            pd.notna(calendar_df["work_mode"]), None
+        )
+
+    holiday_mask = calendar_df["is_holiday"].fillna(False)
+    calendar_df.loc[holiday_mask, "total_minutes"] = 0
 
     calendar_df["day_number"] = calendar_df["work_date"].dt.day
     calendar_df["weekday_idx"] = calendar_df["work_date"].dt.weekday
@@ -474,3 +616,67 @@ def month_calendar(df: pd.DataFrame, month_date: date) -> tuple[pd.DataFrame, pd
     labels = calendar_df.pivot(index="week_in_month", columns="weekday_idx", values="day_number")
 
     return pivot, labels
+
+
+def remuneration_breakdown(
+    df: pd.DataFrame,
+    month_date: date,
+    config: dict,
+    day_target_minutes: int = DAY_TARGET_MINUTES,
+    bonus_applied: bool = False,
+) -> dict:
+    metrics, _ = month_metrics(df, month_date, day_target_minutes=day_target_minutes)
+    total_minutes = int(metrics.get("total_minutes", 0))
+    target_minutes = int(metrics.get("target_minutes", 0))
+
+    worked_hours = total_minutes / 60
+    target_hours = target_minutes / 60
+
+    valor_base = float(config.get("valor_base", 0))
+    valor_hora = float(config.get("valor_hora", 0))
+    valor_bonus = float(config.get("valor_bonus", 0))
+    valor_aux_transporte = float(config.get("valor_aux_transporte", 0))
+
+    if total_minutes >= target_minutes:
+        horas_excedentes = (total_minutes - target_minutes) / 60
+        horas_faltantes = 0
+        ajuste_horas = valor_hora * horas_excedentes
+    else:
+        horas_excedentes = 0
+        horas_faltantes = (target_minutes - total_minutes) / 60
+        ajuste_horas = -valor_hora * horas_faltantes
+
+    month_start = month_date.replace(day=1)
+    month_end = (pd.Timestamp(month_start) + pd.offsets.MonthEnd(0)).date()
+
+    presencial_days = 0
+    if not df.empty:
+        month_mask = (df["work_date"].dt.date >= month_start) & (
+            df["work_date"].dt.date <= month_end
+        )
+        month_df = df.loc[month_mask].copy()
+        if "is_holiday" in month_df.columns:
+            month_df = month_df[~month_df["is_holiday"].fillna(False).astype(bool)]
+        if "work_mode" in month_df.columns:
+            presencial = month_df[month_df["work_mode"] == "Presencial"]
+            presencial_days = presencial["work_date"].dt.date.nunique()
+
+    aux_transporte_total = presencial_days * valor_aux_transporte
+    bonus_total = valor_bonus if bonus_applied else 0
+    total_remuneracao = valor_base + ajuste_horas + bonus_total + aux_transporte_total
+
+    return {
+        "valor_base": valor_base,
+        "valor_hora": valor_hora,
+        "valor_bonus": valor_bonus,
+        "valor_aux_transporte": valor_aux_transporte,
+        "worked_hours": worked_hours,
+        "target_hours": target_hours,
+        "horas_excedentes": horas_excedentes,
+        "horas_faltantes": horas_faltantes,
+        "ajuste_horas": ajuste_horas,
+        "presencial_days": presencial_days,
+        "aux_transporte_total": aux_transporte_total,
+        "bonus_total": bonus_total,
+        "total_remuneracao": total_remuneracao,
+    }

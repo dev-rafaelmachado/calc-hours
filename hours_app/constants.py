@@ -1,6 +1,7 @@
 from datetime import date, timedelta
 
 WEEK_TARGET_MINUTES = 40 * 60
+DAY_TARGET_MINUTES = 8 * 60
 WEEKDAY_ORDER = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
 DAY_LABELS = {
     "monday": "Segunda",
