@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(///wsl.localhost/ubuntu-24.04/home/dev-exban/**)",
+      "Read(//c/Users/exban/**)"
+    ]
+  }
+}

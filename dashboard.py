@@ -20,6 +20,7 @@ from hours_app.db import (
     update_entry,
     update_remuneration_config,
 )
+from hours_app.report import build_monthly_report_xlsx
 from hours_app.services import (
     add_week_fields,
     build_live_today_projection,
@@ -1084,7 +1085,23 @@ def render_remuneration(df: pd.DataFrame, day_target_minutes: int) -> None:
     )
     st.dataframe(details, width="stretch", hide_index=True)
 
-    st.button("Gerar Relatório Mensal Final", disabled=True)
+    pix_key = st.text_input("Chave PIX (para a NF)", key="report_pix_key")
+
+    report_bytes = build_monthly_report_xlsx(
+        df,
+        selected_month,
+        config,
+        breakdown,
+        pix_key=pix_key,
+        day_target_minutes=day_target_minutes,
+    )
+    st.download_button(
+        "Gerar Relatório Mensal Final (Excel)",
+        data=report_bytes,
+        file_name=f"relatorio_jornada_{selected_month:%Y_%m}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        width="stretch",
+    )
 
 
 def render_monthly_csv_export(df: pd.DataFrame) -> None:
