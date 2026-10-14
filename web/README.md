@@ -1,36 +1,55 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Hours Commander (web)
 
-## Getting Started
+Controle de jornada por **batidas** (punches): cada dia é uma lista de entradas e
+saídas, somadas em pares, com quantas pausas forem necessárias. Next.js 16
+(App Router, Cache Components) + shadcn/ui + Supabase.
 
-First, run the development server:
+## Rodando localmente
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+cd web
+cp .env.example .env.local   # preencha URL e chave pública do Supabase
+pnpm install
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Banco: rode no SQL Editor do Supabase, em ordem, os arquivos de
+`../scripts/migrations/` a partir de `20261014_punches.sql`. Para trazer os dados
+do app antigo, crie o usuário em *Authentication → Users*, ajuste o e-mail em
+`20261014_migrate_legacy.sql` e rode-o; `20261014_check_legacy_parity.sql` deve
+voltar vazio.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Variáveis de ambiente
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Nome | Onde | Para quê |
+|---|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | browser + servidor | URL do projeto |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | browser + servidor | chave pública (publishable ou anon); o RLS restringe tudo ao usuário logado |
+| `SUPABASE_SERVICE_ROLE_KEY` | só servidor | sincronização agendada da Sólides |
+| `CRON_SECRET` | só servidor | protege a rota do cron |
 
-## Learn More
+## Scripts
 
-To learn more about Next.js, take a look at the following resources:
+- `pnpm check`: lint, typecheck e testes. Rode antes de considerar algo pronto.
+- `pnpm test`: vitest (domínio, paridade com o app Python, importação CSV, Excel).
+- `pnpm build`: build de produção.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Organização
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `lib/domain/`: regras puras (pareamento de batidas, semana, previsão, mês,
+  remuneração, simulador). `parity.test.ts` compara com saídas do
+  `hours_app/services.py` geradas por `../scripts/gen_parity_fixtures.py`.
+- `lib/data/`: acesso ao Supabase. Toda leitura e Server Action passa por
+  `requireUser()`; o `proxy.ts` só renova a sessão e redireciona.
+- `app/actions.ts`: Server Actions (bater ponto, editar batidas, dia, ajustes,
+  importação CSV).
+- `app/(app)/`: telas Hoje, Semana, Mês, Registros e Ajustes.
+- `lib/report/` + `app/api/export/`: relatório Excel e CSVs do mês.
 
-## Deploy on Vercel
+## Regras que valem saber
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Número ímpar de batidas hoje = intervalo aberto até agora. Num dia passado =
+  "incompleto": só os pares fechados contam.
+- Feriado zera a meta do dia e as horas dele não contam.
+- A compensação de semanas anteriores soma os déficits de cada semana passada
+  e não é abatida por horas extras de outras semanas (regra herdada do app antigo).
