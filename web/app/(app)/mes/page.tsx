@@ -91,7 +91,10 @@ async function MonthContent({ searchParams }: Pick<PageProps<"/mes">, "searchPar
             icon={CalendarCheck}
             value={minutesToDuration(metrics.extraMinutes)}
             tone={metrics.extraMinutes > 0 ? "positive" : "default"}
-            hint={`semanas: +${minutesToDuration(metrics.weeklyOvertimeMinutes)} / -${minutesToDuration(metrics.weeklyDebtMinutes)}`}
+            hint={
+              `semanas: +${minutesToDuration(metrics.weeklyOvertimeMinutes)}` +
+              (metrics.weeklyDebtMinutes > 0 ? ` / -${minutesToDuration(metrics.weeklyDebtMinutes)}` : "")
+            }
           />
         </div>
 
@@ -123,7 +126,7 @@ async function MonthContent({ searchParams }: Pick<PageProps<"/mes">, "searchPar
           <CardHeader>
             <CardTitle>Semanas do mês</CardTitle>
             <CardDescription>
-              Semanas que cruzam a virada do mês usam a meta da semana inteira, como no app antigo.
+              Semanas que cruzam a virada do mês contam só os dias deste mês.
             </CardDescription>
           </CardHeader>
           <CardContent className="overflow-x-auto">
@@ -132,7 +135,7 @@ async function MonthContent({ searchParams }: Pick<PageProps<"/mes">, "searchPar
                 <TableRow>
                   <TableHead>Semana</TableHead>
                   <TableHead className="text-right">Horas</TableHead>
-                  <TableHead className="text-right">Meta</TableHead>
+                  <TableHead className="hidden text-right sm:table-cell">Meta</TableHead>
                   <TableHead className="text-right">Extra</TableHead>
                   <TableHead className="text-right">Faltou</TableHead>
                 </TableRow>
@@ -151,7 +154,7 @@ async function MonthContent({ searchParams }: Pick<PageProps<"/mes">, "searchPar
                       {formatDayShort(w.weekStart)} a {formatDayShort(w.weekEnd)}
                     </TableCell>
                     <TableCell className="text-right font-mono tabular">{minutesToDuration(w.workedMinutes)}</TableCell>
-                    <TableCell className="text-right font-mono text-muted-foreground tabular">
+                    <TableCell className="hidden text-right font-mono text-muted-foreground tabular sm:table-cell">
                       {minutesToDuration(w.targetMinutes)}
                     </TableCell>
                     <TableCell className="text-right font-mono text-working tabular">
