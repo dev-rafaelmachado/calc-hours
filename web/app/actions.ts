@@ -7,6 +7,7 @@ import { z } from "zod"
 import { requireUser } from "@/lib/data/auth"
 import { getSettings } from "@/lib/data/repository"
 import { addDays } from "@/lib/domain/dates"
+import { parsePunchesCsv } from "@/lib/import/csv"
 import { localDate, localMinutes, zonedInstant } from "@/lib/domain/punches"
 import { minutesToClock, parseHHMM } from "@/lib/domain/time"
 import { createClient } from "@/lib/supabase/server"
@@ -168,6 +169,48 @@ export async function saveWorkDay(input: z.input<typeof workDayInput>): Promise<
   if (error) return fail(error, "Não foi possível salvar o dia.")
   refresh()
   return { ok: true, message: "Dia atualizado" }
+}
+
+const MAX_CSV_BYTES = 1_000_000
+
+export async function importCsv(_: ActionResult | null, formData: FormData): Promise<ActionResult> {
+  const user = await requireUser()
+  const file = formData.get("file")
+  if (!(file instanceof File) || file.size === 0) return { ok: false, error: "Escolha um arquivo CSV." }
+  if (file.size > MAX_CSV_BYTES) return { ok: false, error: "Arquivo grande demais (máx. 1 MB)." }
+  const referenceMonday = isoDate.safeParse(formData.get("referenceMonday"))
+
+  const { punches, skippedRows } = parsePunchesCsv(
+    await file.text(),
+    referenceMonday.success ? referenceMonday.data : undefined,
+  )
+  if (punches.length === 0) {
+    return { ok: false, error: "Nenhuma batida reconhecida. Confira as colunas do arquivo." }
+  }
+
+  const { timezone } = await getSettings()
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from("punches")
+    .upsert(
+      punches.map((p) => ({
+        user_id: user.id,
+        punched_at: zonedInstant(p.date, p.minutes, timezone).toISOString(),
+        work_date: p.date,
+        source: "csv",
+      })),
+      { onConflict: "user_id,punched_at", ignoreDuplicates: true },
+    )
+    .select("id")
+  if (error) return fail(error, "Não foi possível importar o arquivo.")
+
+  refresh()
+  const inserted = data.length
+  const ignored = punches.length - inserted
+  const parts = [`${inserted} batida(s) importada(s)`]
+  if (ignored > 0) parts.push(`${ignored} já existiam`)
+  if (skippedRows > 0) parts.push(`${skippedRows} linha(s) ignorada(s)`)
+  return { ok: true, message: parts.join(" · ") }
 }
 
 const money = z.coerce.number().min(0, "Valores não podem ser negativos")
