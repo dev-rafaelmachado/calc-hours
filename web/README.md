@@ -51,5 +51,10 @@ voltar vazio.
 - Número ímpar de batidas hoje = intervalo aberto até agora. Num dia passado =
   "incompleto": só os pares fechados contam.
 - Feriado zera a meta do dia e as horas dele não contam.
-- A compensação de semanas anteriores soma os déficits de cada semana passada
-  e não é abatida por horas extras de outras semanas (regra herdada do app antigo).
+- A compensação que o plano da semana tenta repor é o saldo do mês até a
+  véspera da semana: meta dos dias úteis desde o dia 1º menos o trabalhado. Hora
+  extra abate falta, dia útil sem batida conta como falta e o saldo zera na
+  virada do mês.
+- Na tela Mês, semanas que cruzam a virada contam só os dias daquele mês.
+- O plano não tem teto diário: se faltar muito, a saída prevista pode passar da
+  meia-noite (aparece "+1 dia").

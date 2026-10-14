@@ -191,7 +191,7 @@ export function TodayDashboard({
           value={minutesToHuman(projection.weekMissingMinutes)}
           hint={
             details.previousWeeksDebt > 0
-              ? `inclui ${minutesToHuman(details.previousWeeksDebt)} de compensação`
+              ? `inclui ${minutesToHuman(details.previousWeeksDebt)} a compensar do mês`
               : "sem compensação pendente"
           }
         />

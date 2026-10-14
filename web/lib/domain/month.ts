@@ -60,17 +60,20 @@ export function monthMetrics(
     byWeek.set(key, [...(byWeek.get(key) ?? []), day])
   }
 
-  // A week that crosses the month boundary gets the full-week target while
-  // only its in-month hours count, same as the legacy app.
+  // A week that crosses the month boundary is cut to the days inside the
+  // month, for both hours and target. (The legacy app gave it the full-week
+  // target, which showed a large false deficit on the first and last weeks.)
   const weeks = [...byWeek.entries()]
     .sort(([a], [b]) => (a < b ? -1 : 1))
     .map(([start, weekDays]) => {
+      const rangeStart = start < first ? first : start
       const end = addDays(start, 6)
+      const rangeEnd = end > last ? last : end
       const weekWorked = sumMinutes(weekDays)
-      const weekTarget = weekTargetMinutes(start, end, dayTargetMinutes, holidays)
+      const weekTarget = weekTargetMinutes(rangeStart, rangeEnd, dayTargetMinutes, holidays)
       return {
-        weekStart: start,
-        weekEnd: end,
+        weekStart: rangeStart,
+        weekEnd: rangeEnd,
         workedMinutes: weekWorked,
         targetMinutes: weekTarget,
         extraMinutes: Math.max(weekWorked - weekTarget, 0),

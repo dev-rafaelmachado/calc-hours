@@ -83,7 +83,14 @@ export function forecastCurrentWeek(
   days: DayRecord[],
   today: IsoDate,
   dayTargetMinutes: number,
-  { todayPlanMinutes }: { todayPlanMinutes?: number } = {},
+  {
+    todayPlanMinutes,
+    previousDebt,
+  }: {
+    todayPlanMinutes?: number
+    /** Overrides the month-balance debt (the parity test injects the legacy rule). */
+    previousDebt?: number
+  } = {},
 ): Forecast {
   const start = weekStart(today)
   const end = weekEnd(today)
@@ -110,7 +117,7 @@ export function forecastCurrentWeek(
     .map((i) => addDays(start, i))
     .filter((d) => d >= today && !done.has(d) && !holidays.has(d))
 
-  const debt = previousWeeksDebt(days, start, dayTargetMinutes)
+  const debt = previousDebt ?? previousWeeksDebt(days, start, dayTargetMinutes, today)
   const worked = sumMinutes(current)
   const deficit = Math.max(weekTarget - worked, 0)
   const targetToPlan = deficit + debt

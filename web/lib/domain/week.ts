@@ -1,7 +1,8 @@
 // Ported from hours_app/services.py (_week_target_minutes, current_week_summary,
-// weekly_summary and the previous-weeks debt inside forecast_for_current_week).
+// weekly_summary). previousWeeksDebt follows the monthly-balance rule instead
+// of the legacy one; see its comment.
 
-import { addDays, businessDays, weekEnd, weekStart, type IsoDate } from "./dates"
+import { addDays, businessDays, monthStart, weekEnd, weekStart, type IsoDate } from "./dates"
 import { holidaySet, sumMinutes, workedDays, type DayRecord } from "./days"
 
 /** Business days in [start, end] that are not holidays, times the daily target. */
@@ -73,16 +74,25 @@ export function weeklySummary(days: DayRecord[], dayTargetMinutes: number): Week
 }
 
 /**
- * Sum of the deficits of every week before `currentWeekStart` that has worked
- * days. Same rule as the legacy app: overtime in a past week does not offset
- * another week's deficit.
+ * What the week has to make up from earlier in the month: the target of the
+ * business days from the 1st of `asOf`'s month until the day before
+ * `weekStartDate`, minus what was worked in that range, never negative.
+ *
+ * Overtime offsets missing hours and the balance resets every month, matching
+ * the monthly pay settlement. A business day without punches counts as
+ * missing, like the month's "falta para fechar". (The legacy app summed the
+ * deficit of every past week forever, without netting overtime.)
  */
 export function previousWeeksDebt(
   days: DayRecord[],
-  currentWeekStart: IsoDate,
+  weekStartDate: IsoDate,
   dayTargetMinutes: number,
+  asOf: IsoDate,
 ): number {
-  return weeklySummary(days, dayTargetMinutes)
-    .filter((w) => w.weekStart < currentWeekStart)
-    .reduce((debt, w) => debt + Math.max(w.targetMinutes - w.workedMinutes, 0), 0)
+  const from = monthStart(asOf)
+  const to = addDays(weekStartDate, -1)
+  if (to < from) return 0
+  const target = weekTargetMinutes(from, to, dayTargetMinutes, holidaySet(days))
+  const worked = sumMinutes(workedDays(days).filter((d) => d.date >= from && d.date <= to))
+  return Math.max(target - worked, 0)
 }

@@ -51,7 +51,7 @@ async function WeekContent({ searchParams }: Pick<PageProps<"/semana">, "searchP
 
   const holidays = holidaySet(ws.days)
   const target = weekTargetMinutes(start, end, dayTargetMinutes, holidays)
-  const debt = previousWeeksDebt(ws.days, start, dayTargetMinutes)
+  const debt = previousWeeksDebt(ws.days, start, dayTargetMinutes, isCurrent ? ws.today : start)
   const projection = isCurrent
     ? todayProjection(ws.days, ws.today, ws.nowMinutes, dayTargetMinutes)
     : null
@@ -137,7 +137,7 @@ async function WeekContent({ searchParams }: Pick<PageProps<"/semana">, "searchP
             icon={Hourglass}
             value={minutesToHuman(debt)}
             tone={debt > 0 ? "warning" : "default"}
-            hint="déficits de semanas passadas"
+            hint="saldo do mês antes desta semana"
           />
           <KpiCard
             label={isCurrent ? "Projeção" : "Dias trabalhados"}

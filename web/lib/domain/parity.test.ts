@@ -4,7 +4,8 @@
 import { describe, expect, it } from "vitest"
 
 import fixtures from "./__fixtures__/parity.json"
-import { buildDayRecords, type WorkDayMeta } from "./days"
+import { addDays, monthEnd, monthStart, weekStart } from "./dates"
+import { buildDayRecords, type DayRecord, type WorkDayMeta } from "./days"
 import { forecastCurrentWeek } from "./forecast"
 import { monthMetrics } from "./month"
 import { zonedInstant, type Punch } from "./punches"
@@ -52,6 +53,14 @@ function toRecords(entries: Entry[], today: string) {
 
 const allDays = (today: string) => toRecords(fixtures.entries, today)
 
+/** Legacy compensation (sum of every past week's deficit), injected so the
+ * forecast algorithm itself can still be compared with the Python output. */
+function legacyDebt(days: DayRecord[], today: string, dayTarget: number): number {
+  return weeklySummary(days, dayTarget)
+    .filter((w) => w.weekStart < weekStart(today))
+    .reduce((debt, w) => debt + Math.max(w.targetMinutes - w.workedMinutes, 0), 0)
+}
+
 describe("parity with hours_app/services.py", () => {
   it.each(fixtures.currentWeek)("current_week_summary (target $dayTarget)", (c) => {
     const result = currentWeekSummary(allDays(c.today), c.today, c.dayTarget)
@@ -84,8 +93,10 @@ describe("parity with hours_app/services.py", () => {
       const entries = fixtures.entries.filter(
         (e) => c.today !== "2026-04-13" || e.work_date < "2026-04-13",
       )
-      const forecast = forecastCurrentWeek(toRecords(entries, c.today), c.today, c.dayTarget, {
+      const days = toRecords(entries, c.today)
+      const forecast = forecastCurrentWeek(days, c.today, c.dayTarget, {
         todayPlanMinutes: c.todayPlanMinutes ?? undefined,
+        previousDebt: legacyDebt(days, c.today, c.dayTarget),
       })
       expect(
         forecast.plan.map((r) => ({ date: r.date, hours: minutesToHuman(r.minutes) })),
@@ -100,28 +111,39 @@ describe("parity with hours_app/services.py", () => {
     },
   )
 
+  // Month totals are unchanged. Weeks crossing the month boundary now use a
+  // proportional target (see month.ts), so only weeks fully inside the month
+  // are compared, and the weekly overtime/debt sums are covered in rules.test.ts.
   it.each(fixtures.monthMetrics)("month_metrics ($month, target $dayTarget)", (c) => {
     const result = monthMetrics(allDays("2026-04-15"), c.month, c.dayTarget)
-    const expected = { ...c.metrics } as Partial<typeof c.metrics>
-    delete expected.month_label
     expect({
       total_minutes: result.totalMinutes,
       target_minutes: result.targetMinutes,
       remaining_minutes: result.remainingMinutes,
       extra_minutes: result.extraMinutes,
-      weekly_overtime_minutes: result.weeklyOvertimeMinutes,
-      weekly_debt_minutes: result.weeklyDebtMinutes,
-      weeks_count: result.weeks.length,
-    }).toEqual(expected)
+    }).toEqual({
+      total_minutes: c.metrics.total_minutes,
+      target_minutes: c.metrics.target_minutes,
+      remaining_minutes: c.metrics.remaining_minutes,
+      extra_minutes: c.metrics.extra_minutes,
+    })
+    const inside = (w: { weekStart: string; weekEnd: string }) =>
+      w.weekStart >= monthStart(c.month) && w.weekEnd <= monthEnd(c.month)
+    const expectedWeeks = c.weeks.filter((w) =>
+      inside({ weekStart: w.Semana, weekEnd: w.Período.slice(-10) }),
+    )
+    expect(expectedWeeks.length).toBeGreaterThan(0)
     expect(
-      result.weeks.map((w) => ({
-        Semana: w.weekStart,
-        Período: `${w.weekStart} a ${w.weekEnd}`,
-        Horas: minutesToDuration(w.workedMinutes),
-        Extra: minutesToDuration(w.extraMinutes),
-        Faltou: minutesToDuration(w.debtMinutes),
-      })),
-    ).toEqual(c.weeks)
+      result.weeks
+        .filter((w) => inside(w) && w.weekEnd === addDays(w.weekStart, 6))
+        .map((w) => ({
+          Semana: w.weekStart,
+          Período: `${w.weekStart} a ${w.weekEnd}`,
+          Horas: minutesToDuration(w.workedMinutes),
+          Extra: minutesToDuration(w.extraMinutes),
+          Faltou: minutesToDuration(w.debtMinutes),
+        })),
+    ).toEqual(expectedWeeks)
   })
 
   it.each(fixtures.remuneration)(
