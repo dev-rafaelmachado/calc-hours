@@ -161,7 +161,7 @@ async function WeekContent({ searchParams }: Pick<PageProps<"/semana">, "searchP
           </CardContent>
         </Card>
 
-        <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
+        <div className={cn("grid gap-6", isCurrent && "lg:grid-cols-[1fr_22rem]")}>
           <Card>
             <CardHeader>
               <CardTitle>Dias</CardTitle>
@@ -228,6 +228,7 @@ async function WeekContent({ searchParams }: Pick<PageProps<"/semana">, "searchP
                         </div>
                         <div className="text-xs text-muted-foreground tabular">
                           {minutesToClock(row.suggestedStartMinutes)} → {minutesToClock(row.suggestedEndMinutes)}
+                          {row.suggestedEndMinutes >= 1440 && <span className="text-pending"> (+1 dia)</span>}
                         </div>
                       </div>
                       <span className="font-mono font-semibold tabular">{minutesToHuman(row.minutes)}</span>

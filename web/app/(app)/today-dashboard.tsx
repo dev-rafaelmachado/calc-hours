@@ -167,6 +167,9 @@ export function TodayDashboard({
                 {projection.expectedEndMinutes === null
                   ? "—"
                   : minutesToClock(projection.expectedEndMinutes)}
+                {projection.expectedEndMinutes !== null && projection.expectedEndMinutes >= 1440 && (
+                  <span className="ml-1 font-sans text-xs font-medium text-pending">+1 dia</span>
+                )}
               </span>
             </div>
           </div>
