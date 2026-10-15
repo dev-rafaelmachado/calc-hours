@@ -25,8 +25,6 @@ voltar vazio.
 |---|---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | browser + servidor | URL do projeto |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | browser + servidor | chave pública (publishable ou anon); o RLS restringe tudo ao usuário logado |
-| `SUPABASE_SERVICE_ROLE_KEY` | só servidor | sincronização agendada da Sólides |
-| `CRON_SECRET` | só servidor | protege a rota do cron |
 
 ## Scripts
 

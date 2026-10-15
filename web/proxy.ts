@@ -45,8 +45,7 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Skip static assets and the machine-to-machine endpoints, which
-    // authenticate with their own secrets.
-    "/((?!_next/static|_next/image|favicon.ico|api/cron|api/import|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    // Skip static assets.
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 }
