@@ -1,7 +1,9 @@
+import { Download } from "lucide-react"
 import type { Metadata } from "next"
 import { Suspense } from "react"
 
 import { PageHeader } from "@/components/page-header"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getSettings } from "@/lib/data/repository"
@@ -29,6 +31,21 @@ export default function SettingsPage() {
           <CardContent className="text-sm text-muted-foreground">
             Dias já fechados ficam iguais à Sólides; feriados e o modo do dia (Sede ou Home Office)
             vêm junto.
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Backup</CardTitle>
+            <CardDescription>
+              Todas as suas batidas, dias marcados e ajustes num arquivo JSON, com os mesmos campos
+              do banco. Vale baixar de tempos em tempos e guardar fora daqui.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button variant="outline" nativeButton={false} render={<a href="/api/export/backup" download />}>
+              <Download />
+              Baixar backup
+            </Button>
           </CardContent>
         </Card>
       </div>

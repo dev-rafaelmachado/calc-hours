@@ -13,11 +13,11 @@ pnpm install
 pnpm dev
 ```
 
-Banco: rode no SQL Editor do Supabase, em ordem, os arquivos de
-`../scripts/migrations/` a partir de `20261014_punches.sql`. Para trazer os dados
-do app antigo, crie o usuário em *Authentication → Users*, ajuste o e-mail em
-`20261014_migrate_legacy.sql` e rode-o; `20261014_check_legacy_parity.sql` deve
-voltar vazio.
+Banco: num projeto novo, rode `../scripts/migrations/20261014_punches.sql` no SQL
+Editor do Supabase e crie o usuário em *Authentication → Users*. Desligue o
+cadastro público (*Authentication → Sign In / Providers → Allow new users to sign
+up*): o app não tem tela de cadastro. Os outros arquivos da pasta são o histórico
+da migração do app antigo e já foram aplicados em produção.
 
 ## Variáveis de ambiente
 
@@ -37,20 +37,36 @@ mude a versão nos dois lugares.
 ## Scripts
 
 - `pnpm check`: lint, typecheck e testes. Rode antes de considerar algo pronto.
-- `pnpm test`: vitest (domínio, paridade com o app Python, importação CSV, Excel).
+- `pnpm test`: vitest (domínio, análise, paridade com o app antigo, importações,
+  Excel, backup).
 - `pnpm build`: build de produção.
+- `pnpm e2e:db`: sobe um Supabase local no Docker (só banco, auth e API REST).
+  `pnpm e2e:db:stop` desliga.
+- `pnpm e2e`: testes ponta a ponta com Playwright (veja abaixo).
+
+## Testes ponta a ponta
+
+Precisam de Docker. Com o Supabase local de pé (`pnpm e2e:db`), o `pnpm e2e`
+aplica o schema de `../scripts/migrations/`, cria um usuário de teste, sobe o
+próprio `next dev` na porta 3200 apontando para o Supabase local e roda os
+testes em `e2e/`, cada um começando com a conta vazia. A suíte se recusa a rodar
+contra um Supabase que não seja local, então nunca grava em produção.
 
 ## Organização
 
 - `lib/domain/`: regras puras (pareamento de batidas, semana, previsão, mês,
-  remuneração, simulador). `parity.test.ts` compara com saídas do
-  `hours_app/services.py` geradas por `../scripts/gen_parity_fixtures.py`.
+  remuneração, simulador, análise do período). `parity.test.ts` compara com
+  saídas das regras do app antigo em Python, guardadas num fixture congelado.
+- `lib/insights.ts`: frases da Análise ("O que os dados dizem").
 - `lib/data/`: acesso ao Supabase. Toda leitura e Server Action passa por
   `requireUser()`; o `proxy.ts` só renova a sessão e redireciona.
 - `app/actions.ts`: Server Actions (bater ponto, editar batidas, dia, ajustes,
   importação CSV).
-- `app/(app)/`: telas Hoje, Semana, Mês, Registros e Ajustes.
-- `lib/report/` + `app/api/export/`: relatório Excel e CSVs do mês.
+- `app/(app)/`: telas Hoje, Semana, Mês, Análise, Registros e Ajustes.
+- `lib/report/` + `app/api/export/`: relatório Excel, CSVs do mês e backup
+  completo em JSON (Ajustes → Backup).
+- `e2e/`: testes Playwright; `supabase/config.toml` configura o Supabase local
+  usado por eles.
 
 ## Regras que valem saber
 
@@ -64,3 +80,6 @@ mude a versão nos dois lugares.
 - Na tela Mês, semanas que cruzam a virada contam só os dias daquele mês.
 - O plano não tem teto diário: se faltar muito, a saída prevista pode passar da
   meia-noite (aparece "+1 dia").
+- A Análise usa só dias fechados até ontem, em períodos de meses inteiros que
+  nunca começam antes da primeira batida. O saldo de cada mês é o mesmo da tela
+  Mês; os valores em R$ usam o valor-hora atual.

@@ -1,10 +1,17 @@
-/venv/
-/static/
-.vscode/
-__pycache__/
 .env
 .env.*
 !.env.example
-data/*.db
-.venv/
 node_modules/
+.vscode/
+
+# Local copies of personal data (database dumps, exports)
+/backups/
+/data/
+
+# Leftovers from the removed Python app
+.venv/
+venv/
+__pycache__/
+
+# Per-machine Claude Code settings
+.claude/settings.local.json
