@@ -12,3 +12,6 @@ data/
 .venv/
 venv/
 __pycache__/
+
+# Per-machine Claude Code settings
+.claude/settings.local.json
