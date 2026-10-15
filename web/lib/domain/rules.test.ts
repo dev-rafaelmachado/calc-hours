@@ -16,6 +16,7 @@ function day(date: string, minutes: number, extra: Partial<DayRecord> = {}): Day
     breakMinutes: 60,
     hasPunches: minutes > 0,
     firstInMinutes: minutes > 0 ? 9 * 60 : null,
+    spans: minutes > 0 ? [{ start: 9 * 60, end: 9 * 60 + minutes }] : [],
     status: minutes > 0 ? "closed" : "empty",
     isHoliday: false,
     workMode: null,

@@ -27,6 +27,8 @@
   --color-break: var(--break);
   --color-holiday: var(--holiday);
   --color-pending: var(--pending);
+  --color-presencial: var(--presencial);
+  --color-home-office: var(--home-office);
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -89,6 +91,9 @@
   --break: oklch(0.75 0.15 75);
   --holiday: oklch(0.6 0.16 295);
   --pending: oklch(0.65 0.2 35);
+  /* Work-mode series, validated as a pair for colour-blind separation and 3:1 contrast. */
+  --presencial: oklch(0.55 0.16 260);
+  --home-office: oklch(0.6 0.19 350);
 }
 
 .dark {
@@ -127,6 +132,8 @@
   --break: oklch(0.8 0.14 75);
   --holiday: oklch(0.72 0.14 295);
   --pending: oklch(0.72 0.18 35);
+  --presencial: oklch(0.62 0.15 258);
+  --home-office: oklch(0.65 0.17 350);
 }
 
 @layer base {

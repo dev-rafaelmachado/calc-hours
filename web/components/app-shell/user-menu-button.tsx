@@ -1,6 +1,7 @@
 "use client"
 
-import { LogOut } from "lucide-react"
+import { LogOut, Settings } from "lucide-react"
+import Link from "next/link"
 
 import { signOut } from "@/app/actions"
 import { Button } from "@/components/ui/button"
@@ -21,7 +22,7 @@ export function UserMenuButton({ email, compact }: { email: string; compact: boo
         render={
           <Button
             variant="ghost"
-            className={compact ? "size-8 rounded-full p-0" : "h-9 flex-1 justify-start gap-2 px-2"}
+            className={compact ? "size-8 rounded-full p-0" : "h-9 min-w-0 flex-1 justify-start gap-2 px-2"}
           />
         }
       >
@@ -33,6 +34,10 @@ export function UserMenuButton({ email, compact }: { email: string; compact: boo
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuLabel className="truncate">{email}</DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <DropdownMenuItem render={<Link href="/config" />}>
+          <Settings />
+          Ajustes
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={() => signOut()}>
           <LogOut />
           Sair

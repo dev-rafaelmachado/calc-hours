@@ -40,6 +40,18 @@ export function formatDateBr(date: IsoDate): string {
   return `${formatDayShort(date)}/${y}`
 }
 
+/** "outubro" */
+export function formatMonthName(date: IsoDate): string {
+  return MONTHS[parts(date)[1] - 1]
+}
+
+/** "Out", or "Out/26" when `withYear` */
+export function formatMonthShort(date: IsoDate, withYear = false): string {
+  const [y, m] = parts(date)
+  const name = `${MONTHS[m - 1][0].toUpperCase()}${MONTHS[m - 1].slice(1, 3)}`
+  return withYear ? `${name}/${String(y).slice(2)}` : name
+}
+
 /** "Outubro de 2026" */
 export function formatMonth(date: IsoDate): string {
   const [y, m] = parts(date)
