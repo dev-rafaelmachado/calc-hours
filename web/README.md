@@ -26,6 +26,14 @@ voltar vazio.
 | `NEXT_PUBLIC_SUPABASE_URL` | browser + servidor | URL do projeto |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | browser + servidor | chave pública (publishable ou anon); o RLS restringe tudo ao usuário logado |
 
+## Deploy (Vercel)
+
+Projeto com **Root Directory** `web` e as duas variáveis públicas do Supabase.
+O `vercel.json` fixa o pnpm 12.8.1 do `packageManager`: como o app fica numa
+subpasta, a detecção automática da Vercel não acha o `packageManager`, cai
+num pnpm antigo e esse não lê o lockfile do pnpm 12. Ao atualizar o pnpm,
+mude a versão nos dois lugares.
+
 ## Scripts
 
 - `pnpm check`: lint, typecheck e testes. Rode antes de considerar algo pronto.
