@@ -45,6 +45,12 @@ export function monthEnd(date: IsoDate): IsoDate {
   return fromUtc(Date.UTC(y, m, 0))
 }
 
+/** First day of the month `months` away from `date`'s month. */
+export function shiftMonth(date: IsoDate, months: number): IsoDate {
+  const [y, m] = date.split("-").map(Number)
+  return fromUtc(Date.UTC(y, m - 1 + months, 1))
+}
+
 export function eachDay(start: IsoDate, end: IsoDate): IsoDate[] {
   const out: IsoDate[] = []
   for (let d = start; d <= end; d = addDays(d, 1)) out.push(d)
