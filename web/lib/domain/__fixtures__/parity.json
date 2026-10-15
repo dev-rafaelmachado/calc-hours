@@ -1,0 +1,906 @@
+{
+  "entries": [
+    {
+      "id": 1,
+      "work_date": "2026-03-02",
+      "start_time": "09:06",
+      "lunch_start_time": "11:59",
+      "lunch_end_time": "12:40",
+      "end_time": "16:50",
+      "total_minutes": 423,
+      "is_holiday": false,
+      "work_mode": "Presencial"
+    },
+    {
+      "id": 2,
+      "work_date": "2026-03-03",
+      "start_time": "08:13",
+      "lunch_start_time": "12:02",
+      "lunch_end_time": "13:29",
+      "end_time": "16:55",
+      "total_minutes": 435,
+      "is_holiday": false,
+      "work_mode": "Presencial"
+    },
+    {
+      "id": 3,
+      "work_date": "2026-03-04",
+      "start_time": "09:00",
+      "lunch_start_time": "12:39",
+      "lunch_end_time": "13:21",
+      "end_time": "16:28",
+      "total_minutes": 406,
+      "is_holiday": false,
+      "work_mode": "Presencial"
+    },
+    {
+      "id": 4,
+      "work_date": "2026-03-05",
+      "start_time": "08:12",
+      "lunch_start_time": "12:14",
+      "lunch_end_time": "13:26",
+      "end_time": "16:32",
+      "total_minutes": 428,
+      "is_holiday": false,
+      "work_mode": "Presencial"
+    },
+    {
+      "id": 5,
+      "work_date": "2026-03-06",
+      "start_time": "09:16",
+      "lunch_start_time": "13:08",
+      "lunch_end_time": "14:32",
+      "end_time": "19:51",
+      "total_minutes": 551,
+      "is_holiday": false,
+      "work_mode": "Home office"
+    },
+    {
+      "id": 6,
+      "work_date": "2026-03-09",
+      "start_time": "08:13",
+      "lunch_start_time": "12:42",
+      "lunch_end_time": "13:59",
+      "end_time": "18:10",
+      "total_minutes": 520,
+      "is_holiday": false,
+      "work_mode": "Presencial"
+    },
+    {
+      "id": 7,
+      "work_date": "2026-03-10",
+      "start_time": "09:22",
+      "lunch_start_time": "12:05",
+      "lunch_end_time": "13:29",
+      "end_time": "18:17",
+      "total_minutes": 451,
+      "is_holiday": false,
+      "work_mode": "Home office"
+    },
+    {
+      "id": 8,
+      "work_date": "2026-03-11",
+      "start_time": "08:20",
+      "lunch_start_time": "12:04",
+      "lunch_end_time": "12:57",
+      "end_time": "17:23",
+      "total_minutes": 490,
+      "is_holiday": false,
+      "work_mode": "Presencial"
+    },
+    {
+      "id": 9,
+      "work_date": "2026-03-12",
+      "start_time": "07:56",
+      "lunch_start_time": "12:33",
+      "lunch_end_time": "13:19",
+      "end_time": "17:50",
+      "total_minutes": 548,
+      "is_holiday": false,
+      "work_mode": "Home office"
+    },
+    {
+      "id": 10,
+      "work_date": "2026-03-13",
+      "start_time": "09:02",
+      "lunch_start_time": "12:18",
+      "lunch_end_time": "13:00",
+      "end_time": "17:57",
+      "total_minutes": 493,
+      "is_holiday": false,
+      "work_mode": "Presencial"
+    },
+    {
+      "id": 11,
+      "work_date": "2026-03-14",
+      "start_time": "08:33",
+      "lunch_start_time": "11:55",
+      "lunch_end_time": "13:10",
+      "end_time": "17:25",
+      "total_minutes": 457,
+      "is_holiday": false,
+      "work_mode": "Home office"
+    },
+    {
+      "id": 12,
+      "work_date": "2026-03-16",
+      "start_time": "08:58",
+      "lunch_start_time": "12:09",
+      "lunch_end_time": "13:34",
+      "end_time": "16:51",
+      "total_minutes": 388,
+      "is_holiday": false,
+      "work_mode": "Presencial"
+    },
+    {
+      "id": 13,
+      "work_date": "2026-03-17",
+      "start_time": "09:09",
+      "lunch_start_time": "12:14",
+      "lunch_end_time": "13:43",
+      "end_time": "17:57",
+      "total_minutes": 439,
+      "is_holiday": false,
+      "work_mode": "Presencial"
+    },
+    {
+      "id": 14,
+      "work_date": "2026-03-18",
+      "start_time": "08:14",
+      "lunch_start_time": "11:57",
+      "lunch_end_time": "13:01",
+      "end_time": "17:12",
+      "total_minutes": 474,
+      "is_holiday": false,
+      "work_mode": "Home office"
+    },
+    {
+      "id": 15,
+      "work_date": "2026-03-19",
+      "start_time": "09:06",
+      "lunch_start_time": "12:31",
+      "lunch_end_time": "13:21",
+      "end_time": "17:55",
+      "total_minutes": 479,
+      "is_holiday": false,
+      "work_mode": "Home office"
+    },
+    {
+      "id": 16,
+      "work_date": "2026-03-23",
+      "start_time": "08:11",
+      "lunch_start_time": "13:10",
+      "lunch_end_time": "14:07",
+      "end_time": "17:25",
+      "total_minutes": 497,
+      "is_holiday": false,
+      "work_mode": "Presencial"
+    },
+    {
+      "id": 17,
+      "work_date": "2026-03-24",
+      "start_time": "08:53",
+      "lunch_start_time": "12:16",
+      "lunch_end_time": "13:06",
+      "end_time": "18:04",
+      "total_minutes": 501,
+      "is_holiday": false,
+      "work_mode": "Home office"
+    },
+    {
+      "id": 18,
+      "work_date": "2026-03-25",
+      "start_time": "08:19",
+      "lunch_start_time": "13:06",
+      "lunch_end_time": "14:30",
+      "end_time": "19:52",
+      "total_minutes": 609,
+      "is_holiday": false,
+      "work_mode": "Presencial"
+    },
+    {
+      "id": 19,
+      "work_date": "2026-03-26",
+      "start_time": "09:12",
+      "lunch_start_time": "12:26",
+      "lunch_end_time": "13:55",
+      "end_time": "17:09",
+      "total_minutes": 388,
+      "is_holiday": false,
+      "work_mode": "Presencial"
+    },
+    {
+      "id": 20,
+      "work_date": "2026-03-27",
+      "start_time": "09:30",
+      "lunch_start_time": "11:49",
+      "lunch_end_time": "12:49",
+      "end_time": "17:31",
+      "total_minutes": 421,
+      "is_holiday": false,
+      "work_mode": "Home office"
+    },
+    {
+      "id": 21,
+      "work_date": "2026-03-30",
+      "start_time": "07:53",
+      "lunch_start_time": "12:12",
+      "lunch_end_time": "13:28",
+      "end_time": "17:48",
+      "total_minutes": 519,
+      "is_holiday": false,
+      "work_mode": "Presencial"
+    },
+    {
+      "id": 22,
+      "work_date": "2026-03-31",
+      "start_time": "09:08",
+      "lunch_start_time": "12:48",
+      "lunch_end_time": "13:53",
+      "end_time": "18:50",
+      "total_minutes": 517,
+      "is_holiday": false,
+      "work_mode": "Presencial"
+    },
+    {
+      "id": 23,
+      "work_date": "2026-04-01",
+      "start_time": "08:18",
+      "lunch_start_time": "12:02",
+      "lunch_end_time": "12:57",
+      "end_time": "18:20",
+      "total_minutes": 547,
+      "is_holiday": false,
+      "work_mode": "Home office"
+    },
+    {
+      "id": 24,
+      "work_date": "2026-04-02",
+      "start_time": "09:20",
+      "lunch_start_time": "12:59",
+      "lunch_end_time": "14:06",
+      "end_time": "19:35",
+      "total_minutes": 548,
+      "is_holiday": false,
+      "work_mode": "Home office"
+    },
+    {
+      "id": 25,
+      "work_date": "2026-04-03",
+      "start_time": "00:00",
+      "lunch_start_time": "00:00",
+      "lunch_end_time": "00:00",
+      "end_time": "00:00",
+      "total_minutes": 0,
+      "is_holiday": true,
+      "work_mode": null
+    },
+    {
+      "id": 26,
+      "work_date": "2026-04-06",
+      "start_time": "08:31",
+      "lunch_start_time": "12:13",
+      "lunch_end_time": "13:01",
+      "end_time": "18:11",
+      "total_minutes": 532,
+      "is_holiday": false,
+      "work_mode": "Home office"
+    },
+    {
+      "id": 27,
+      "work_date": "2026-04-07",
+      "start_time": "07:56",
+      "lunch_start_time": "11:51",
+      "lunch_end_time": "12:38",
+      "end_time": "16:17",
+      "total_minutes": 454,
+      "is_holiday": false,
+      "work_mode": "Presencial"
+    },
+    {
+      "id": 28,
+      "work_date": "2026-04-09",
+      "start_time": "09:26",
+      "lunch_start_time": "13:12",
+      "lunch_end_time": "14:19",
+      "end_time": "17:35",
+      "total_minutes": 422,
+      "is_holiday": false,
+      "work_mode": "Home office"
+    },
+    {
+      "id": 29,
+      "work_date": "2026-04-10",
+      "start_time": "08:33",
+      "lunch_start_time": "13:01",
+      "lunch_end_time": "14:10",
+      "end_time": "19:25",
+      "total_minutes": 583,
+      "is_holiday": false,
+      "work_mode": "Home office"
+    },
+    {
+      "id": 30,
+      "work_date": "2026-04-13",
+      "start_time": "08:55",
+      "lunch_start_time": "11:46",
+      "lunch_end_time": "13:09",
+      "end_time": "16:38",
+      "total_minutes": 380,
+      "is_holiday": false,
+      "work_mode": "Home office"
+    },
+    {
+      "id": 31,
+      "work_date": "2026-04-14",
+      "start_time": "09:23",
+      "lunch_start_time": "13:07",
+      "lunch_end_time": "14:08",
+      "end_time": "17:36",
+      "total_minutes": 432,
+      "is_holiday": false,
+      "work_mode": "Home office"
+    },
+    {
+      "id": 32,
+      "work_date": "2026-04-17",
+      "start_time": "00:00",
+      "lunch_start_time": "00:00",
+      "lunch_end_time": "00:00",
+      "end_time": "00:00",
+      "total_minutes": 0,
+      "is_holiday": true,
+      "work_mode": null
+    }
+  ],
+  "currentWeek": [
+    {
+      "today": "2026-04-15",
+      "dayTarget": 480,
+      "week_start": "2026-04-13",
+      "week_end": "2026-04-19",
+      "worked_minutes": 812,
+      "remaining_minutes": 1108,
+      "progress": 0.42291666666666666
+    },
+    {
+      "today": "2026-04-15",
+      "dayTarget": 450,
+      "week_start": "2026-04-13",
+      "week_end": "2026-04-19",
+      "worked_minutes": 812,
+      "remaining_minutes": 988,
+      "progress": 0.45111111111111113
+    }
+  ],
+  "weeklySummary": [
+    {
+      "dayTarget": 480,
+      "rows": [
+        {
+          "Semana": "2026-04-13",
+          "Período": "2026-04-13 a 2026-04-19",
+          "Horas": "13h 32m",
+          "Registros": 2,
+          "Status": "Faltam 18h 28m"
+        },
+        {
+          "Semana": "2026-04-06",
+          "Período": "2026-04-06 a 2026-04-12",
+          "Horas": "33h 11m",
+          "Registros": 4,
+          "Status": "Faltam 6h 49m"
+        },
+        {
+          "Semana": "2026-03-30",
+          "Período": "2026-03-30 a 2026-04-05",
+          "Horas": "35h 31m",
+          "Registros": 4,
+          "Status": "Meta batida"
+        },
+        {
+          "Semana": "2026-03-23",
+          "Período": "2026-03-23 a 2026-03-29",
+          "Horas": "40h 16m",
+          "Registros": 5,
+          "Status": "Meta batida"
+        },
+        {
+          "Semana": "2026-03-16",
+          "Período": "2026-03-16 a 2026-03-22",
+          "Horas": "29h 40m",
+          "Registros": 4,
+          "Status": "Faltam 10h 20m"
+        },
+        {
+          "Semana": "2026-03-09",
+          "Período": "2026-03-09 a 2026-03-15",
+          "Horas": "49h 19m",
+          "Registros": 6,
+          "Status": "Meta batida"
+        },
+        {
+          "Semana": "2026-03-02",
+          "Período": "2026-03-02 a 2026-03-08",
+          "Horas": "37h 23m",
+          "Registros": 5,
+          "Status": "Faltam 2h 37m"
+        }
+      ]
+    },
+    {
+      "dayTarget": 450,
+      "rows": [
+        {
+          "Semana": "2026-04-13",
+          "Período": "2026-04-13 a 2026-04-19",
+          "Horas": "13h 32m",
+          "Registros": 2,
+          "Status": "Faltam 16h 28m"
+        },
+        {
+          "Semana": "2026-04-06",
+          "Período": "2026-04-06 a 2026-04-12",
+          "Horas": "33h 11m",
+          "Registros": 4,
+          "Status": "Faltam 4h 19m"
+        },
+        {
+          "Semana": "2026-03-30",
+          "Período": "2026-03-30 a 2026-04-05",
+          "Horas": "35h 31m",
+          "Registros": 4,
+          "Status": "Meta batida"
+        },
+        {
+          "Semana": "2026-03-23",
+          "Período": "2026-03-23 a 2026-03-29",
+          "Horas": "40h 16m",
+          "Registros": 5,
+          "Status": "Meta batida"
+        },
+        {
+          "Semana": "2026-03-16",
+          "Período": "2026-03-16 a 2026-03-22",
+          "Horas": "29h 40m",
+          "Registros": 4,
+          "Status": "Faltam 7h 50m"
+        },
+        {
+          "Semana": "2026-03-09",
+          "Período": "2026-03-09 a 2026-03-15",
+          "Horas": "49h 19m",
+          "Registros": 6,
+          "Status": "Meta batida"
+        },
+        {
+          "Semana": "2026-03-02",
+          "Período": "2026-03-02 a 2026-03-08",
+          "Horas": "37h 23m",
+          "Registros": 5,
+          "Status": "Faltam 0h 07m"
+        }
+      ]
+    }
+  ],
+  "forecast": [
+    {
+      "today": "2026-04-15",
+      "dayTarget": 480,
+      "todayPlanMinutes": null,
+      "plan": [
+        {
+          "date": "2026-04-15",
+          "hours": "19h 25m"
+        },
+        {
+          "date": "2026-04-16",
+          "hours": "18h 49m"
+        }
+      ],
+      "details": {
+        "worked_current_week": 812,
+        "missing_current_week": 1108,
+        "previous_weeks_debt": 1186,
+        "target_to_plan": 2294,
+        "projected_week_total": 3106
+      }
+    },
+    {
+      "today": "2026-04-15",
+      "dayTarget": 480,
+      "todayPlanMinutes": 300,
+      "plan": [
+        {
+          "date": "2026-04-15",
+          "hours": "5h 00m"
+        },
+        {
+          "date": "2026-04-16",
+          "hours": "33h 14m"
+        }
+      ],
+      "details": {
+        "worked_current_week": 812,
+        "missing_current_week": 1108,
+        "previous_weeks_debt": 1186,
+        "target_to_plan": 2294,
+        "projected_week_total": 3106
+      }
+    },
+    {
+      "today": "2026-04-15",
+      "dayTarget": 450,
+      "todayPlanMinutes": null,
+      "plan": [
+        {
+          "date": "2026-04-15",
+          "hours": "14h 40m"
+        },
+        {
+          "date": "2026-04-16",
+          "hours": "14h 04m"
+        }
+      ],
+      "details": {
+        "worked_current_week": 812,
+        "missing_current_week": 988,
+        "previous_weeks_debt": 736,
+        "target_to_plan": 1724,
+        "projected_week_total": 2536
+      }
+    },
+    {
+      "today": "2026-04-13",
+      "dayTarget": 480,
+      "todayPlanMinutes": null,
+      "plan": [
+        {
+          "date": "2026-04-13",
+          "hours": "11h 51m"
+        },
+        {
+          "date": "2026-04-14",
+          "hours": "11h 37m"
+        },
+        {
+          "date": "2026-04-15",
+          "hours": "12h 16m"
+        },
+        {
+          "date": "2026-04-16",
+          "hours": "11h 40m"
+        },
+        {
+          "date": "2026-04-17",
+          "hours": "12h 22m"
+        }
+      ],
+      "details": {
+        "worked_current_week": 0,
+        "missing_current_week": 2400,
+        "previous_weeks_debt": 1186,
+        "target_to_plan": 3586,
+        "projected_week_total": 3586
+      }
+    },
+    {
+      "today": "2026-04-13",
+      "dayTarget": 480,
+      "todayPlanMinutes": 600,
+      "plan": [
+        {
+          "date": "2026-04-13",
+          "hours": "10h 00m"
+        },
+        {
+          "date": "2026-04-14",
+          "hours": "12h 05m"
+        },
+        {
+          "date": "2026-04-15",
+          "hours": "12h 44m"
+        },
+        {
+          "date": "2026-04-16",
+          "hours": "12h 07m"
+        },
+        {
+          "date": "2026-04-17",
+          "hours": "12h 50m"
+        }
+      ],
+      "details": {
+        "worked_current_week": 0,
+        "missing_current_week": 2400,
+        "previous_weeks_debt": 1186,
+        "target_to_plan": 3586,
+        "projected_week_total": 3586
+      }
+    }
+  ],
+  "monthMetrics": [
+    {
+      "month": "2026-03-01",
+      "dayTarget": 480,
+      "metrics": {
+        "month_label": "03/2026",
+        "total_minutes": 10434,
+        "target_minutes": 10560,
+        "remaining_minutes": 126,
+        "extra_minutes": 0,
+        "weekly_overtime_minutes": 575,
+        "weekly_debt_minutes": 2141,
+        "weeks_count": 5
+      },
+      "weeks": [
+        {
+          "Semana": "2026-03-02",
+          "Período": "2026-03-02 a 2026-03-08",
+          "Horas": "37:23",
+          "Extra": "00:00",
+          "Faltou": "02:37"
+        },
+        {
+          "Semana": "2026-03-09",
+          "Período": "2026-03-09 a 2026-03-15",
+          "Horas": "49:19",
+          "Extra": "09:19",
+          "Faltou": "00:00"
+        },
+        {
+          "Semana": "2026-03-16",
+          "Período": "2026-03-16 a 2026-03-22",
+          "Horas": "29:40",
+          "Extra": "00:00",
+          "Faltou": "10:20"
+        },
+        {
+          "Semana": "2026-03-23",
+          "Período": "2026-03-23 a 2026-03-29",
+          "Horas": "40:16",
+          "Extra": "00:16",
+          "Faltou": "00:00"
+        },
+        {
+          "Semana": "2026-03-30",
+          "Período": "2026-03-30 a 2026-04-05",
+          "Horas": "17:16",
+          "Extra": "00:00",
+          "Faltou": "22:44"
+        }
+      ]
+    },
+    {
+      "month": "2026-03-01",
+      "dayTarget": 450,
+      "metrics": {
+        "month_label": "03/2026",
+        "total_minutes": 10434,
+        "target_minutes": 9900,
+        "remaining_minutes": 0,
+        "extra_minutes": 534,
+        "weekly_overtime_minutes": 875,
+        "weekly_debt_minutes": 1691,
+        "weeks_count": 5
+      },
+      "weeks": [
+        {
+          "Semana": "2026-03-02",
+          "Período": "2026-03-02 a 2026-03-08",
+          "Horas": "37:23",
+          "Extra": "00:00",
+          "Faltou": "00:07"
+        },
+        {
+          "Semana": "2026-03-09",
+          "Período": "2026-03-09 a 2026-03-15",
+          "Horas": "49:19",
+          "Extra": "11:49",
+          "Faltou": "00:00"
+        },
+        {
+          "Semana": "2026-03-16",
+          "Período": "2026-03-16 a 2026-03-22",
+          "Horas": "29:40",
+          "Extra": "00:00",
+          "Faltou": "07:50"
+        },
+        {
+          "Semana": "2026-03-23",
+          "Período": "2026-03-23 a 2026-03-29",
+          "Horas": "40:16",
+          "Extra": "02:46",
+          "Faltou": "00:00"
+        },
+        {
+          "Semana": "2026-03-30",
+          "Período": "2026-03-30 a 2026-04-05",
+          "Horas": "17:16",
+          "Extra": "00:00",
+          "Faltou": "20:14"
+        }
+      ]
+    },
+    {
+      "month": "2026-04-01",
+      "dayTarget": 480,
+      "metrics": {
+        "month_label": "04/2026",
+        "total_minutes": 3898,
+        "target_minutes": 9600,
+        "remaining_minutes": 5702,
+        "extra_minutes": 0,
+        "weekly_overtime_minutes": 0,
+        "weekly_debt_minutes": 2342,
+        "weeks_count": 3
+      },
+      "weeks": [
+        {
+          "Semana": "2026-03-30",
+          "Período": "2026-03-30 a 2026-04-05",
+          "Horas": "18:15",
+          "Extra": "00:00",
+          "Faltou": "13:45"
+        },
+        {
+          "Semana": "2026-04-06",
+          "Período": "2026-04-06 a 2026-04-12",
+          "Horas": "33:11",
+          "Extra": "00:00",
+          "Faltou": "06:49"
+        },
+        {
+          "Semana": "2026-04-13",
+          "Período": "2026-04-13 a 2026-04-19",
+          "Horas": "13:32",
+          "Extra": "00:00",
+          "Faltou": "18:28"
+        }
+      ]
+    },
+    {
+      "month": "2026-04-01",
+      "dayTarget": 450,
+      "metrics": {
+        "month_label": "04/2026",
+        "total_minutes": 3898,
+        "target_minutes": 9000,
+        "remaining_minutes": 5102,
+        "extra_minutes": 0,
+        "weekly_overtime_minutes": 0,
+        "weekly_debt_minutes": 1952,
+        "weeks_count": 3
+      },
+      "weeks": [
+        {
+          "Semana": "2026-03-30",
+          "Período": "2026-03-30 a 2026-04-05",
+          "Horas": "18:15",
+          "Extra": "00:00",
+          "Faltou": "11:45"
+        },
+        {
+          "Semana": "2026-04-06",
+          "Período": "2026-04-06 a 2026-04-12",
+          "Horas": "33:11",
+          "Extra": "00:00",
+          "Faltou": "04:19"
+        },
+        {
+          "Semana": "2026-04-13",
+          "Período": "2026-04-13 a 2026-04-19",
+          "Horas": "13:32",
+          "Extra": "00:00",
+          "Faltou": "16:28"
+        }
+      ]
+    }
+  ],
+  "remuneration": [
+    {
+      "month": "2026-03-01",
+      "dayTarget": 480,
+      "config": {
+        "valor_base": 5000.0,
+        "valor_hora": 42.5,
+        "valor_bonus": 300.0,
+        "valor_aux_transporte": 18.0
+      },
+      "bonusApplied": false,
+      "result": {
+        "valor_base": 5000.0,
+        "valor_hora": 42.5,
+        "valor_bonus": 300.0,
+        "valor_aux_transporte": 18.0,
+        "worked_hours": 173.9,
+        "target_hours": 176.0,
+        "horas_excedentes": 0,
+        "horas_faltantes": 2.1,
+        "ajuste_horas": -89.25,
+        "presencial_days": 14,
+        "aux_transporte_total": 252.0,
+        "bonus_total": 0,
+        "total_remuneracao": 5162.75
+      }
+    },
+    {
+      "month": "2026-03-01",
+      "dayTarget": 480,
+      "config": {
+        "valor_base": 5000.0,
+        "valor_hora": 42.5,
+        "valor_bonus": 300.0,
+        "valor_aux_transporte": 18.0
+      },
+      "bonusApplied": true,
+      "result": {
+        "valor_base": 5000.0,
+        "valor_hora": 42.5,
+        "valor_bonus": 300.0,
+        "valor_aux_transporte": 18.0,
+        "worked_hours": 173.9,
+        "target_hours": 176.0,
+        "horas_excedentes": 0,
+        "horas_faltantes": 2.1,
+        "ajuste_horas": -89.25,
+        "presencial_days": 14,
+        "aux_transporte_total": 252.0,
+        "bonus_total": 300.0,
+        "total_remuneracao": 5462.75
+      }
+    },
+    {
+      "month": "2026-04-01",
+      "dayTarget": 480,
+      "config": {
+        "valor_base": 5000.0,
+        "valor_hora": 42.5,
+        "valor_bonus": 300.0,
+        "valor_aux_transporte": 18.0
+      },
+      "bonusApplied": false,
+      "result": {
+        "valor_base": 5000.0,
+        "valor_hora": 42.5,
+        "valor_bonus": 300.0,
+        "valor_aux_transporte": 18.0,
+        "worked_hours": 64.96666666666667,
+        "target_hours": 160.0,
+        "horas_excedentes": 0,
+        "horas_faltantes": 95.03333333333333,
+        "ajuste_horas": -4038.9166666666665,
+        "presencial_days": 1,
+        "aux_transporte_total": 18.0,
+        "bonus_total": 0,
+        "total_remuneracao": 979.0833333333335
+      }
+    },
+    {
+      "month": "2026-04-01",
+      "dayTarget": 480,
+      "config": {
+        "valor_base": 5000.0,
+        "valor_hora": 42.5,
+        "valor_bonus": 300.0,
+        "valor_aux_transporte": 18.0
+      },
+      "bonusApplied": true,
+      "result": {
+        "valor_base": 5000.0,
+        "valor_hora": 42.5,
+        "valor_bonus": 300.0,
+        "valor_aux_transporte": 18.0,
+        "worked_hours": 64.96666666666667,
+        "target_hours": 160.0,
+        "horas_excedentes": 0,
+        "horas_faltantes": 95.03333333333333,
+        "ajuste_horas": -4038.9166666666665,
+        "presencial_days": 1,
+        "aux_transporte_total": 18.0,
+        "bonus_total": 300.0,
+        "total_remuneracao": 1279.0833333333335
+      }
+    }
+  ]
+}
