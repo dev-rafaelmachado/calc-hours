@@ -21,7 +21,7 @@ export function UserMenuButton({ email, compact }: { email: string; compact: boo
         render={
           <Button
             variant="ghost"
-            className={compact ? "size-8 rounded-full p-0" : "h-9 flex-1 justify-start gap-2 px-2"}
+            className={compact ? "size-8 rounded-full p-0" : "h-9 min-w-0 flex-1 justify-start gap-2 px-2"}
           />
         }
       >
