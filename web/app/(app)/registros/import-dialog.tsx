@@ -19,6 +19,8 @@ import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { IsoDate } from "@/lib/domain/dates"
 
+import { SolidesImport } from "./solides-import"
+
 export function ImportDialog({ referenceMonday }: { referenceMonday: IsoDate }) {
   const [open, setOpen] = useState(false)
   const { pending, run } = useActionToast()
@@ -29,15 +31,15 @@ export function ImportDialog({ referenceMonday }: { referenceMonday: IsoDate }) 
         <Upload />
         Importar
       </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Importar batidas</DialogTitle>
-          <DialogDescription>Batidas que já existem no mesmo horário são ignoradas.</DialogDescription>
+          <DialogDescription>Traga batidas da Sólides (copiar e colar) ou de um arquivo CSV.</DialogDescription>
         </DialogHeader>
-        <Tabs defaultValue="csv">
+        <Tabs defaultValue="solides">
           <TabsList>
-            <TabsTrigger value="csv">CSV</TabsTrigger>
             <TabsTrigger value="solides">Sólides</TabsTrigger>
+            <TabsTrigger value="csv">CSV</TabsTrigger>
           </TabsList>
           <TabsContent value="csv" className="pt-3">
             <form
@@ -75,10 +77,7 @@ export function ImportDialog({ referenceMonday }: { referenceMonday: IsoDate }) 
             </form>
           </TabsContent>
           <TabsContent value="solides" className="pt-3">
-            <p className="text-sm text-muted-foreground">
-              A importação direta da Sólides entra depois que mapearmos a API do portal do colaborador.
-              Por enquanto, use o CSV ou lance as batidas manualmente.
-            </p>
+            <SolidesImport onDone={() => setOpen(false)} />
           </TabsContent>
         </Tabs>
       </DialogContent>

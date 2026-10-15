@@ -5,9 +5,12 @@ import { redirect } from "next/navigation"
 import { z } from "zod"
 
 import { requireUser } from "@/lib/data/auth"
-import { getSettings } from "@/lib/data/repository"
+import { getPunches, getSettings, getWorkDays } from "@/lib/data/repository"
 import { addDays } from "@/lib/domain/dates"
+import type { WorkMode } from "@/lib/domain/days"
+import { formatIntervals } from "@/lib/format-punches"
 import { parsePunchesCsv } from "@/lib/import/csv"
+import { parseSolidesTimesheet, planSolidesImport, type DayAction } from "@/lib/import/solides"
 import { localDate, localMinutes, zonedInstant } from "@/lib/domain/punches"
 import { minutesToClock, parseHHMM } from "@/lib/domain/time"
 import { createClient } from "@/lib/supabase/server"
@@ -210,6 +213,119 @@ export async function importCsv(_: ActionResult | null, formData: FormData): Pro
   const parts = [`${inserted} batida(s) importada(s)`]
   if (ignored > 0) parts.push(`${ignored} já existiam`)
   if (skippedRows > 0) parts.push(`${skippedRows} linha(s) ignorada(s)`)
+  return { ok: true, message: parts.join(" · ") }
+}
+
+const MAX_SOLIDES_CHARS = 500_000
+
+async function buildSolidesPlan(text: string) {
+  const days = parseSolidesTimesheet(text)
+  if (days.length === 0) return null
+  const dates = days.map((d) => d.date).sort()
+  const { timezone } = await getSettings()
+  const [punches, meta] = await Promise.all([getPunches(dates[0], dates.at(-1)), getWorkDays()])
+  const today = localDate(new Date(), timezone)
+  return { plans: planSolidesImport(days, punches, meta, { today, timeZone: timezone }), timezone }
+}
+
+export interface SolidesPreviewDay {
+  date: string
+  action: DayAction
+  imported: string
+  current: string
+  importedMinutes: number
+  isHoliday: boolean
+  workMode: WorkMode | null
+  editedCount: number
+  warnings: string[]
+}
+
+export type SolidesPreview = { ok: true; days: SolidesPreviewDay[] } | { ok: false; error: string }
+
+const SOLIDES_EMPTY =
+  "Nenhum dia reconhecido. Copie a tabela da Apropriação de horas a partir da linha com a data."
+
+/** Read-only: what importing the pasted text would change, day by day. */
+export async function previewSolidesImport(text: string): Promise<SolidesPreview> {
+  await requireUser()
+  if (text.length > MAX_SOLIDES_CHARS) return { ok: false, error: "Texto grande demais." }
+  const built = await buildSolidesPlan(text)
+  if (!built) return { ok: false, error: SOLIDES_EMPTY }
+  const clock = (m: number) => minutesToClock(m)
+  return {
+    ok: true,
+    days: built.plans.map((plan) => ({
+      date: plan.date,
+      action: plan.action,
+      imported: plan.imported.intervals
+        .map((i) => `${clock(i.start)}–${i.end === null ? "…" : clock(i.end)}`)
+        .join(" · "),
+      current: formatIntervals(plan.existing, built.timezone),
+      importedMinutes: plan.imported.intervals.reduce(
+        (sum, i) => sum + (i.end === null ? 0 : (i.end - i.start + 1440) % 1440),
+        0,
+      ),
+      isHoliday: plan.imported.isHoliday,
+      workMode: plan.imported.workMode,
+      editedCount: plan.imported.intervals.filter((i) => i.edited).length,
+      warnings: plan.imported.warnings,
+    })),
+  }
+}
+
+export async function applySolidesImport(text: string): Promise<ActionResult> {
+  const user = await requireUser()
+  if (text.length > MAX_SOLIDES_CHARS) return { ok: false, error: "Texto grande demais." }
+  const built = await buildSolidesPlan(text)
+  if (!built) return { ok: false, error: SOLIDES_EMPTY }
+  const { plans } = built
+  const supabase = await createClient()
+
+  // Insert before deleting, so a failure never leaves a day empty.
+  const inserts = plans.flatMap((p) => p.insert)
+  if (inserts.length > 0) {
+    const { error } = await supabase.from("punches").upsert(
+      inserts.map((i) => ({
+        user_id: user.id,
+        punched_at: i.punchedAt,
+        work_date: i.workDate,
+        source: "solides",
+      })),
+      { onConflict: "user_id,punched_at", ignoreDuplicates: true },
+    )
+    if (error) return fail(error, "Não foi possível gravar as batidas da Sólides.")
+  }
+  const deleteIds = plans.flatMap((p) => p.deleteIds)
+  if (deleteIds.length > 0) {
+    const { error } = await supabase.from("punches").delete().in("id", deleteIds)
+    if (error) return fail(error, "As batidas novas entraram, mas não foi possível remover as antigas.")
+  }
+  const relabelIds = plans.flatMap((p) => p.relabelIds)
+  if (relabelIds.length > 0) {
+    // Only the "Sólides" badge depends on this, so a failure is logged, not fatal.
+    const { error } = await supabase.from("punches").update({ source: "solides" }).in("id", relabelIds)
+    if (error) console.error("relabel solides punches", error)
+  }
+  const metas = plans.flatMap((p) => (p.meta ? [p.meta] : []))
+  if (metas.length > 0) {
+    const { error } = await supabase.from("work_days").upsert(
+      metas.map((m) => ({
+        user_id: user.id,
+        work_date: m.workDate,
+        is_holiday: m.isHoliday,
+        work_mode: m.workMode,
+        updated_at: new Date().toISOString(),
+      })),
+    )
+    if (error) return fail(error, "As batidas entraram, mas não foi possível marcar feriados e modos.")
+  }
+
+  refresh()
+  const count = (action: DayAction) => plans.filter((p) => p.action === action).length
+  const parts = [`${count("new") + count("replace") + count("merge")} dia(s) atualizados`]
+  if (count("same") > 0) parts.push(`${count("same")} já estavam iguais`)
+  const holidays = metas.filter((m) => m.isHoliday).length
+  if (holidays > 0) parts.push(`${holidays} feriado(s) marcado(s)`)
   return { ok: true, message: parts.join(" · ") }
 }
 

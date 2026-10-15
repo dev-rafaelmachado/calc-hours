@@ -22,11 +22,14 @@ export default function SettingsPage() {
           <CardHeader>
             <CardTitle>Sólides</CardTitle>
             <CardDescription>
-              Sincronização das suas marcações direto do portal do colaborador, apenas leitura.
-              Disponível depois do mapeamento da API do portal.
+              O login da Sólides exige reCAPTCHA, então a importação parte do seu navegador: copie a
+              tabela da Apropriação de horas e cole em Registros → Importar → Sólides.
             </CardDescription>
           </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">Ainda não conectado.</CardContent>
+          <CardContent className="text-sm text-muted-foreground">
+            Dias já fechados ficam iguais à Sólides; feriados e o modo do dia (Sede ou Home Office)
+            vêm junto.
+          </CardContent>
         </Card>
       </div>
     </>
