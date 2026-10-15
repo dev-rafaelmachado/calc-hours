@@ -1,5 +1,5 @@
-import type { IsoDate } from "./dates"
-import { localMinutes, summarizeDay, type DayStatus, type Punch } from "./punches"
+import { diffDays, type IsoDate } from "./dates"
+import { localDate, localMinutes, summarizeDay, type DayStatus, type Punch } from "./punches"
 
 export type WorkMode = "home_office" | "presencial"
 
@@ -15,6 +15,15 @@ export interface WorkDayMeta {
 }
 
 /**
+ * An interval as local clock minutes from the workday's midnight. A shift that
+ * crosses midnight ends past 1440. `end` is null while the interval is open.
+ */
+export interface DaySpan {
+  start: number
+  end: number | null
+}
+
+/**
  * One calendar day with any record (punches or metadata). Metrics only count
  * "worked days": non-holiday days that have punches. A day that only carries
  * metadata (e.g. marked presencial in advance) never counts as done.
@@ -26,6 +35,7 @@ export interface DayRecord {
   hasPunches: boolean
   /** Local minutes of the first punch, used to profile the usual start time. */
   firstInMinutes: number | null
+  spans: DaySpan[]
   status: DayStatus
   isHoliday: boolean
   workMode: WorkMode | null
@@ -57,11 +67,19 @@ export function buildDayRecords(
       firstInMinutes: summary.intervals[0]
         ? localMinutes(summary.intervals[0].start, timeZone)
         : null,
+      spans: summary.intervals.map((interval) => ({
+        start: dayMinutes(interval.start, date, timeZone),
+        end: interval.end ? dayMinutes(interval.end, date, timeZone) : null,
+      })),
       status: summary.status,
       isHoliday: dayMeta?.isHoliday ?? false,
       workMode: dayMeta?.workMode ?? null,
     }
   })
+}
+
+function dayMinutes(instant: string, workDate: IsoDate, timeZone: string): number {
+  return diffDays(localDate(instant, timeZone), workDate) * 1440 + localMinutes(instant, timeZone)
 }
 
 export function holidaySet(days: DayRecord[]): Set<IsoDate> {
