@@ -100,6 +100,41 @@ export const getWorkDays = cache(async (): Promise<WorkDayMeta[]> => {
   return rows.map((r) => ({ workDate: r.work_date, isHoliday: r.is_holiday, workMode: r.work_mode }))
 })
 
+type RawRow = Record<string, unknown>
+
+async function allRows(table: "punches" | "work_days", orderBy: string): Promise<RawRow[]> {
+  const supabase = await createClient()
+  const rows: RawRow[] = []
+  for (let offset = 0; ; offset += PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from(table)
+      .select("*")
+      .order(orderBy)
+      .range(offset, offset + PAGE_SIZE - 1)
+    if (error) throw error
+    rows.push(...data)
+    if (data.length < PAGE_SIZE) break
+  }
+  return rows
+}
+
+/** Every row the user owns, with all columns, for the JSON backup. */
+export async function getAllData(): Promise<{
+  settings: RawRow | null
+  workDays: RawRow[]
+  punches: RawRow[]
+}> {
+  await requireUser()
+  const supabase = await createClient()
+  const [settings, workDays, punches] = await Promise.all([
+    supabase.from("user_settings").select("*").maybeSingle(),
+    allRows("work_days", "work_date"),
+    allRows("punches", "punched_at"),
+  ])
+  if (settings.error) throw settings.error
+  return { settings: settings.data, workDays, punches }
+}
+
 export interface Workspace {
   user: CurrentUser
   settings: Settings
